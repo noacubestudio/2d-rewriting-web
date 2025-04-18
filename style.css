@@ -58,6 +58,7 @@ canvas, .grid {
     background: transparent;
 }
 .grid::after {
+    /* Helps show the tile borders for multi-tile grids */
     content: "";
     position: absolute;
     inset: 0;

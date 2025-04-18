@@ -1,12 +1,3 @@
-function blank_pattern(w = TILE_SIZE, h = TILE_SIZE) {
-    return {
-        id: generate_id(),
-        width: w, 
-        height: h,
-        pixels: Array.from({ length: h }, () => Array(w).fill(0))
-    };
-}
-
 function initial_rule() {
     function blank_pattern(w = TILE_SIZE, h = TILE_SIZE) {
         return {
