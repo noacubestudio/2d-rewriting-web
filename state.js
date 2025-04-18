@@ -96,7 +96,6 @@ function duplicate_selection() {
     }
 
     render_all_rules();
-    render_rules_selection(path, ui_state.selected_path);
     console.log('duplicated selection', ui_state.selected_path);
 }
 
@@ -151,8 +150,6 @@ function reorder_selection(direction) {
         [rules[index], rules[target]] = [rules[target], rules[index]];
     }
     render_all_rules();
-    // path did not change, but force re-render because it moved
-    render_rules_selection(null, ui_state.selected_path);
     console.log('reordered selection', ui_state.selected_path);
 }
 
@@ -162,12 +159,12 @@ function clear_selection() {
 
 function rotate_patterns_in_selection() {
     const path = ui_state.selected_path;
-    if (!path) return;
+    if (!path.rule_id) return;
 
     const patterns = get_selected_rule_patterns(path);
     patterns.forEach(pattern => rotate_pattern(pattern, 1));
 
-    render_all_rules();
+    render_rule_by_id(path.rule_id);
     console.log('rotated patterns in selection', path);
 }
 
@@ -184,24 +181,30 @@ function resize_patterns_in_selection(x_direction, y_direction) {
         const new_height = Math.max(1, pattern.height + y_direction * TILE_SIZE);
         resize_pattern(pattern, new_width, new_height);
     });
-    render_all_rules();
+
+    render_rule_by_id(path.rule_id);
     console.log('resized patterns in selection', path);
 }
 
 function shift_patterns_in_selection(x_direction, y_direction) {
     const path = ui_state.selected_path;
-    if (!path) return;
+    if (!path.rule_id) return;
 
     const patterns = get_selected_rule_patterns(path);
     patterns.forEach(pattern => shift_pattern(pattern, x_direction, y_direction));
 
-    render_all_rules();
+    render_rule_by_id(path.rule_id);
     console.log('shifted patterns in selection', path);
 }
 
 
 function rotate_pattern(pattern, times = 1) {
-    // TODO
+    for (let i = 0; i < times; i++) {
+        const new_pixels = pattern.pixels[0].map((_, index) => pattern.pixels.map(row => row[index]).reverse());
+        pattern.pixels = new_pixels;
+    }
+    pattern.width = pattern.pixels[0].length;
+    pattern.height = pattern.pixels.length;
 }
 
 function resize_pattern(pattern, new_width, new_height, fill = 0) {

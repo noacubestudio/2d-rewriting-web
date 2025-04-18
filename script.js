@@ -34,6 +34,8 @@ document.addEventListener("keydown", (e) => {
         reorder_selection(1);
     } else if (e.key === "d") {
         duplicate_selection();
+    } else if (e.key === "r") {
+        rotate_patterns_in_selection();
     } 
 });
 
@@ -69,8 +71,8 @@ function create_editor_div(pattern, on_change) {
     grid.style.gridTemplateColumns = `repeat(${pattern.width}, 1fr)`;
     grid.style.width = `${pattern.width * PIXEL_SCALE}px`;
     grid.style.height = `${pattern.height * PIXEL_SCALE}px`;
-    // grid.style.setProperty("--tile-size", TILE_SIZE);
-    // grid.style.setProperty("--pixel-size", PIXEL_SCALE);
+    grid.style.setProperty("--tile-size", TILE_SIZE);
+    grid.style.setProperty("--pixel-scale", PIXEL_SCALE);
 
     // pixels
     for (let y = 0; y < pattern.height; y++) {
@@ -110,19 +112,6 @@ function create_editor_div(pattern, on_change) {
     return grid;
 }
 
-function render_rules_selection(old_path, new_path) {
-    // remove previous selection
-    if (old_path) {
-        if (paths_equal(old_path, new_path)) return;
-        const old = document.querySelector(build_selector(old_path));
-        if (old) old.classList.remove('selected');
-    }
-    // add new selection highlight
-    if (new_path.length === 0) return;
-    const new_selection = document.querySelector(build_selector(new_path));
-    if (new_selection) new_selection.classList.add('selected');
-}
-
 function build_path(el) {
     const rule = el.closest(".rule");
     const part = el.closest(".rule-part");
@@ -135,26 +124,10 @@ function build_path(el) {
     };
 }
 
-function build_selector(path) {
-    let sel = '';
-    if (path.rule_id)    sel += `.rule[data-id="${path.rule_id}"]`;
-    if (path.part_id)    sel += ` .rule-part[data-id="${path.part_id}"]`;
-    if (path.pattern_id) sel += ` .pattern-wrap[data-id="${path.pattern_id}"]`;
-    return sel;
-}
-
 function render_rule(rule) {
     const ruleEl = document.createElement("div");
     ruleEl.className = "rule";
     ruleEl.dataset.id = rule.id;
-
-    // click event
-    rules_container.addEventListener("click", (e) => {
-        const new_path = build_path(e.target);
-        const should_toggle = ui_state.selected_path && paths_equal(ui_state.selected_path, new_path) && new_path.length < 3
-        render_rules_selection(ui_state.selected_path, new_path);
-        ui_state.selected_path = should_toggle ? null : new_path;
-    });
 
     rule.parts.forEach(part => {
         const partEl = document.createElement("div");
@@ -172,39 +145,88 @@ function render_rule(rule) {
             draw_pattern_to_canvas(canvas, pattern);
             wrapEl.appendChild(canvas);
 
-            let grid = null;
-            let timeout = null;
-
-            wrapEl.addEventListener("mouseenter", () => {
-                document.querySelectorAll(".grid").forEach(g => g.remove());
-                grid = create_editor_div(pattern, () => draw_pattern_to_canvas(canvas, pattern));
+            const is_selected = ui_state.selected_path?.pattern_id === pattern.id;
+            if (is_selected) {
+                const grid = create_editor_div(pattern, () => { 
+                    draw_pattern_to_canvas(canvas, pattern);
+                });
                 wrapEl.appendChild(grid);
-            });
-
-            wrapEl.addEventListener("mouseleave", () => {
-                timeout = setTimeout(() => {
-                    if (grid) grid.remove(); 
-                    grid = null;
-                }, 200);
-            });
+            }
 
             partEl.appendChild(wrapEl);
-            console.log(ruleEl, partEl, wrapEl);
         });
 
         ruleEl.appendChild(partEl);
     });
 
-    rules_container.appendChild(ruleEl);
+    const path = ui_state.selected_path;
+    if (path && path.rule_id === rule.id) select_in_rule(path, ruleEl)
+
+    return ruleEl;
+}
+
+function select_in_rule(path, ruleEl) {
+    if (path.part_id) {
+        const partEl = ruleEl.querySelector(`.rule-part[data-id="${path.part_id}"]`);
+        if (partEl && path.pattern_id) {
+            const patternEl = partEl.querySelector(`.pattern-wrap[data-id="${path.pattern_id}"]`);
+            if (patternEl) {
+                patternEl.classList.add("selected");
+            }
+        } else if (partEl) {
+            partEl.classList.add("selected");
+        }
+    } else {
+        ruleEl.classList.add("selected");
+    }
 }
 
 function render_all_rules() {
     rules_container.innerHTML = "";
-    rules.forEach(rule => render_rule(rule));
+    rules.forEach(rule => {
+        const ruleEl = render_rule(rule);
+        rules_container.appendChild(ruleEl);
+    });
+    console.log("render_all_rules", rules.length);
 }
 
-initial_rule();
-render_all_rules();
+function render_rule_by_id(rule_id) {
+    const index = rules.findIndex(r => r.id === rule_id);
+    if (index === -1) return;
+
+    // Remove existing DOM node
+    const oldEl = document.querySelector(`.rule[data-id="${rule_id}"]`);
+    if (oldEl) oldEl.remove();
+
+    // Re-render and insert at the right position
+    const newEl = render_rule(rules[index]);
+    rules_container.insertBefore(newEl, rules_container.children[index]);
+
+    console.log("render_rule_by_id", rule_id, index);
+}
+
+function init() {
+    // click event for selection
+    rules_container.addEventListener("click", (e) => {
+        const old_path = structuredClone(ui_state.selected_path);
+        const new_path = build_path(e.target);
+        const should_toggle = 
+            old_path && paths_equal(old_path, new_path) && 
+            new_path.length < 3
+        
+        ui_state.selected_path = should_toggle ? null : new_path;
+
+        // render selection change
+        const old_id = old_path?.rule_id;
+        const new_id = new_path?.rule_id;
+        if (old_id && old_id !== new_id) render_rule_by_id(old_id);
+        if (new_id) render_rule_by_id(new_id);
+    });
+
+    initial_rule();
+    render_all_rules();
+}
+init();
 
 
 // helpers
