@@ -57,3 +57,14 @@ canvas, .grid {
     border: 0.5px solid #99999999;
     background: transparent;
 }
+/* .grid::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(to right, rgba(252, 0, 0) 1px, transparent 1px),
+        linear-gradient(to bottom, rgb(252, 0, 0) 1px, transparent 1px);
+    background-size: calc(var(--tile-size) * var(--pixel-scale)) 
+                     calc(var(--tile-size) * var(--pixel-scale));
+} */

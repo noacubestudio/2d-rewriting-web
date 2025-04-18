@@ -20,13 +20,21 @@ const ui_state = {
 document.addEventListener("keydown", (e) => {
     if (e.key === "Delete") {
         delete_selection();
+    } else if (e.key === "ArrowUp" && e.ctrlKey) {
+        resize_patterns_in_selection(0, -1);
+    } else if (e.key === "ArrowDown" && e.ctrlKey) {
+        resize_patterns_in_selection(0, 1);
+    } else if (e.key === "ArrowLeft" && e.ctrlKey) {
+        resize_patterns_in_selection(-1, 0);
+    } else if (e.key === "ArrowRight" && e.ctrlKey) {
+        resize_patterns_in_selection(1, 0);
     } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
         reorder_selection(-1);
     } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
         reorder_selection(1);
     } else if (e.key === "d") {
         duplicate_selection();
-    }
+    } 
 });
 
 function value_to_color(value) { 
@@ -42,7 +50,8 @@ function draw_pattern_to_canvas(canvas, pattern) {
     const ctx = canvas.getContext("2d");
     for (let y = 0; y < pattern.height; y++) {
         for (let x = 0; x < pattern.width; x++) {
-            ctx.fillStyle = value_to_color(pattern.pixels[y][x]);
+            const value = (pattern.pixels[y] !== undefined) ? pattern.pixels[y][x] : null;
+            ctx.fillStyle = value_to_color(value);
             ctx.fillRect(x * scale, y * scale, scale, scale);
         }
     }
@@ -56,12 +65,14 @@ function pick_draw_value(value) {
 
 function create_editor_div(pattern, on_change) {
     const grid = document.createElement("div");
-    const scale = PIXEL_SCALE;
     grid.className = "grid";
     grid.style.gridTemplateColumns = `repeat(${pattern.width}, 1fr)`;
-    grid.style.width = `${pattern.width * scale}px`;
-    grid.style.height = `${pattern.height * scale}px`;
+    grid.style.width = `${pattern.width * PIXEL_SCALE}px`;
+    grid.style.height = `${pattern.height * PIXEL_SCALE}px`;
+    // grid.style.setProperty("--tile-size", TILE_SIZE);
+    // grid.style.setProperty("--pixel-size", PIXEL_SCALE);
 
+    // pixels
     for (let y = 0; y < pattern.height; y++) {
         for (let x = 0; x < pattern.width; x++) {
             const cell = document.createElement("div");
@@ -140,7 +151,6 @@ function render_rule(rule) {
     // click event
     rules_container.addEventListener("click", (e) => {
         const new_path = build_path(e.target);
-        console.log(new_path);
         const should_toggle = ui_state.selected_path && paths_equal(ui_state.selected_path, new_path) && new_path.length < 3
         render_rules_selection(ui_state.selected_path, new_path);
         ui_state.selected_path = should_toggle ? null : new_path;

@@ -28,8 +28,7 @@ function initial_rule() {
     });
 }
 
-function get_selected_rule_objects() {
-    const path = ui_state.selected_path;
+function get_selected_rule_objects(path) {
     if (!path) return {};
 
     const rule = rules.find(r => r.id === path.rule_id);
@@ -41,11 +40,32 @@ function get_selected_rule_objects() {
     return { rule, part, pattern };
 }
 
+function get_selected_rule_patterns(path) {
+    if (!path) return [];
+
+    if (path.pattern_id) {
+        const { pattern } = get_selected_rule_objects(path);
+        return pattern ? [pattern] : [];
+    }
+
+    if (path.part_id) {
+        const { part } = get_selected_rule_objects(path);
+        return part ? part.patterns : [];
+    }
+
+    if (path.rule_id) {
+        const { rule } = get_selected_rule_objects(path);
+        return rule ? rule.parts.flatMap(part => part.patterns) : [];
+    }
+
+    return [];
+}
+
 function duplicate_selection() {
     const path = ui_state.selected_path;
     if (!path) return;
 
-    const { rule, part, pattern } = get_selected_rule_objects();
+    const { rule, part, pattern } = get_selected_rule_objects(path);
 
     if (path.pattern_id && part) {
         const index = part.patterns.findIndex(p => p.id === path.pattern_id);
@@ -84,7 +104,7 @@ function delete_selection() {
     const path = ui_state.selected_path;
     if (!path) return;
 
-    const { rule, part, pattern } = get_selected_rule_objects();
+    const { rule, part, pattern } = get_selected_rule_objects(path);
 
     if (path.pattern_id && part) {
         if (part.patterns.length <= 2) return; // keep at least 2 patterns
@@ -108,7 +128,7 @@ function reorder_selection(direction) {
     const path = ui_state.selected_path;
     if (!path) return;
 
-    const { rule, part, pattern } = get_selected_rule_objects();
+    const { rule, part, pattern } = get_selected_rule_objects(path);
 
     if (path.pattern_id && part) {
         const index = part.patterns.findIndex(p => p.id === path.pattern_id);
@@ -141,13 +161,65 @@ function clear_selection() {
 }
 
 function rotate_patterns_in_selection() {
-    // TODO
+    const path = ui_state.selected_path;
+    if (!path) return;
+
+    const patterns = get_selected_rule_patterns(path);
+    patterns.forEach(pattern => rotate_pattern(pattern, 1));
+
+    render_all_rules();
+    console.log('rotated patterns in selection', path);
 }
 
 function resize_patterns_in_selection(x_direction, y_direction) {
-    // TODO
+    const path = { // always resize patterns in the same path together
+        rule_id: ui_state.selected_path.rule_id, 
+        part_id: ui_state.selected_path.part_id
+    };
+    if (!path.rule_id) return;
+
+    const patterns = get_selected_rule_patterns(path);
+    patterns.forEach(pattern => {
+        const new_width = Math.max(1, pattern.width + x_direction * TILE_SIZE);
+        const new_height = Math.max(1, pattern.height + y_direction * TILE_SIZE);
+        resize_pattern(pattern, new_width, new_height);
+    });
+    render_all_rules();
+    console.log('resized patterns in selection', path);
 }
 
 function shift_patterns_in_selection(x_direction, y_direction) {
+    const path = ui_state.selected_path;
+    if (!path) return;
+
+    const patterns = get_selected_rule_patterns(path);
+    patterns.forEach(pattern => shift_pattern(pattern, x_direction, y_direction));
+
+    render_all_rules();
+    console.log('shifted patterns in selection', path);
+}
+
+
+function rotate_pattern(pattern, times = 1) {
+    // TODO
+}
+
+function resize_pattern(pattern, new_width, new_height, fill = 0) {
+    const old_pixels = pattern.pixels;
+    const old_height = old_pixels.length;
+    const old_width = old_pixels[0]?.length || 0;
+
+    const new_pixels = Array.from({ length: new_height }, (_, y) =>
+        Array.from({ length: new_width }, (_, x) =>
+            (y < old_height && x < old_width) ? old_pixels[y][x] : fill
+        )
+    );
+
+    pattern.width = new_width;
+    pattern.height = new_height;
+    pattern.pixels = new_pixels;
+}
+
+function shift_pattern(pattern, x_direction, y_direction) {
     // TODO
 }
