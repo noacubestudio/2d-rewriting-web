@@ -1,8 +1,10 @@
 // constants
 const TILE_SIZE = 8;
 const PIXEL_SCALE = 8;
-const PIXEL_PALLETTE = ["#222", "#fff"];
 const rules_container = document.getElementById("rules-container");
+
+// misc
+let id_counter = 0;
 
 // state to save/load
 const rules = [];
@@ -28,6 +30,8 @@ document.addEventListener("keydown", (e) => {
 });
 
 function value_to_color(value) { 
+    // TODO: think about how to add wildcard color
+    const PIXEL_PALLETTE = ["#222", "#fff"];
     return PIXEL_PALLETTE[value] || "magenta";
 }
 
@@ -46,7 +50,7 @@ function draw_pattern_to_canvas(canvas, pattern) {
 
 function pick_draw_value(value) {
     // when starting on the color itself, erase instead of draw
-    draw_value = (value === ui_state.selected_palette_value) ? 
+    ui_state.draw_value = (value === ui_state.selected_palette_value) ? 
       0 : ui_state.selected_palette_value;
 }
 
@@ -95,116 +99,130 @@ function create_editor_div(pattern, on_change) {
     return grid;
 }
 
-function rules_ui_set_selection(new_path) {
+function render_rules_selection(old_path, new_path) {
     // remove previous selection
-    if (ui_state.selected_path) {
-        const old = document.querySelector(build_selector(ui_state.selected_path));
+    if (old_path) {
+        if (paths_equal(old_path, new_path)) return;
+        const old = document.querySelector(build_selector(old_path));
         if (old) old.classList.remove('selected');
-        // toggle off
-        if (arrays_equal(ui_state.selected_path, new_path) && new_path.length < 3) {
-            ui_state.selected_path = null; 
-            return;
-        }
-    }
-    if (new_path.length === 0) {
-        ui_state.selected_path = null; // no selection
-        return;
     }
     // add new selection highlight
-    const new_selected = document.querySelector(build_selector(new_path));
-    if (new_selected) {
-        new_selected.classList.add('selected');
-        ui_state.selected_path = new_path;
-    }
+    if (new_path.length === 0) return;
+    const new_selection = document.querySelector(build_selector(new_path));
+    if (new_selection) new_selection.classList.add('selected');
+}
+
+function build_path(el) {
+    const rule = el.closest(".rule");
+    const part = el.closest(".rule-part");
+    const wrap = el.closest(".pattern-wrap");
+
+    return {
+        rule_id: rule?.dataset.id,
+        part_id: part?.dataset.id,
+        pattern_id: wrap?.dataset.id
+    };
 }
 
 function build_selector(path) {
     let sel = '';
-    if (path.length > 0) {
-      sel += `.rule[data-index="${path[0]}"]`;
-    }
-    if (path.length > 1) {
-      sel += ` .rule-part[data-index="${path[1]}"]`;
-    }
-    if (path.length > 2) {
-      sel += ` .pattern-wrap[data-index="${path[2]}"]`;
-    }
+    if (path.rule_id)    sel += `.rule[data-id="${path.rule_id}"]`;
+    if (path.part_id)    sel += ` .rule-part[data-id="${path.part_id}"]`;
+    if (path.pattern_id) sel += ` .pattern-wrap[data-id="${path.pattern_id}"]`;
     return sel;
 }
 
-function build_path(selected_element) {
-    const rule = selected_element.closest('.rule');
-    const part = selected_element.closest('.rule-part');
-    const wrap = selected_element.closest('.pattern-wrap');
-    return [
-        rule ? (+rule.dataset.index) : null,
-        part ? (+part.dataset.index) : null,
-        wrap ? (+wrap.dataset.index) : null
-    ].filter(v => v !== null);
-}
-
-function render_rule(rule, rule_index) {
+function render_rule(rule) {
     const ruleEl = document.createElement("div");
     ruleEl.className = "rule";
-    ruleEl.dataset.index = rule_index;
+    ruleEl.dataset.id = rule.id;
 
     // click event
     rules_container.addEventListener("click", (e) => {
-        rules_ui_set_selection(build_path(e.target));
+        const new_path = build_path(e.target);
+        console.log(new_path);
+        const should_toggle = ui_state.selected_path && paths_equal(ui_state.selected_path, new_path) && new_path.length < 3
+        render_rules_selection(ui_state.selected_path, new_path);
+        ui_state.selected_path = should_toggle ? null : new_path;
     });
 
-    rule.forEach((part, part_index) => {
+    rule.parts.forEach(part => {
         const partEl = document.createElement("div");
         partEl.className = "rule-part";
-        partEl.dataset.index = part_index;
+        partEl.dataset.id = part.id;
 
-        part.forEach((pattern, pattern_index) => {
-            const wrap = document.createElement("div");
-            wrap.className = "pattern-wrap";
-            wrap.dataset.index = pattern_index;
+        part.patterns.forEach(pattern => {
+            const wrapEl = document.createElement("div");
+            wrapEl.className = "pattern-wrap";
+            wrapEl.dataset.id = pattern.id;
+
             const canvas = document.createElement("canvas");
             canvas.style.width = `${pattern.width * PIXEL_SCALE}px`;
             canvas.style.height = `${pattern.height * PIXEL_SCALE}px`;
             draw_pattern_to_canvas(canvas, pattern);
-            wrap.appendChild(canvas);
+            wrapEl.appendChild(canvas);
 
             let grid = null;
             let timeout = null;
 
-            wrap.addEventListener("mouseenter", () => {
-                // remove other active grids
+            wrapEl.addEventListener("mouseenter", () => {
                 document.querySelectorAll(".grid").forEach(g => g.remove());
-
-                grid = create_editor_div(pattern, () => {
-                    draw_pattern_to_canvas(canvas, pattern); // on change
-                });
-                wrap.appendChild(grid);
+                grid = create_editor_div(pattern, () => draw_pattern_to_canvas(canvas, pattern));
+                wrapEl.appendChild(grid);
             });
 
-            wrap.addEventListener("mouseleave", () => {
+            wrapEl.addEventListener("mouseleave", () => {
                 timeout = setTimeout(() => {
                     if (grid) grid.remove(); 
                     grid = null;
-                }, 200); // let mouseout finish
+                }, 200);
             });
 
-            partEl.appendChild(wrap);
+            partEl.appendChild(wrapEl);
+            console.log(ruleEl, partEl, wrapEl);
         });
+
         ruleEl.appendChild(partEl);
     });
+
     rules_container.appendChild(ruleEl);
 }
 
 function render_all_rules() {
     rules_container.innerHTML = "";
-    rules.forEach((rule, index) => render_rule(rule, index));
+    rules.forEach(rule => render_rule(rule));
 }
 
-add_rule(); // initial
+initial_rule();
 render_all_rules();
 
 
 // helpers
-function arrays_equal(a, b) {
-    return a.length === b.length && a.every((v, i) => v === b[i]);
+function paths_equal(a, b) {
+    return a.rule_id === b.rule_id && a.part_id === b.part_id && a.pattern_id === b.pattern_id;
+}
+
+function generate_id(prefix = "id") {
+    return `${prefix}_${Date.now().toString(36)}_${(id_counter++).toString(36)}`;
+}
+
+// each rule, each part, each pattern gets a new id when cloned
+function deep_clone_with_ids(obj) {
+    if (Array.isArray(obj)) {
+        return obj.map(deep_clone_with_ids);
+    } else if (obj && typeof obj === 'object') {
+        const copy = {};
+        for (const key in obj) {
+            copy[key] = deep_clone_with_ids(obj[key]);
+        }
+        if ("pixels" in copy) {
+            copy.id = generate_id("pat");
+        } else if ("patterns" in copy) {
+            copy.id = generate_id("part");
+        } else if ("parts" in copy) {
+            copy.id = generate_id("rule");
+        }
+        return copy;
+    }
+    return obj;
 }
