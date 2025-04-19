@@ -1,5 +1,5 @@
 function initial_play_pattern() {
-    function blank_play_pattern(w = BOARD_TILES_X * TILE_SIZE, h = BOARD_TILES_Y * TILE_SIZE) {
+    function blank_play_pattern(w = PLAY_TILES_X * TILE_SIZE, h = PLAY_TILES_Y * TILE_SIZE) {
         return {
             id: 'play',
             width: w,
@@ -8,7 +8,7 @@ function initial_play_pattern() {
         };
     }
 
-    board = blank_play_pattern();
+    play_pattern = blank_play_pattern();
 }
 
 function apply_selected_rule() {
@@ -23,9 +23,9 @@ function apply_selected_rule() {
 }
 
 function apply_rule(rule) {
-    let target_pattern = board;
+    let target_pattern = play_pattern;
     
-    // find a match for the initial pattern of every part in the board
+    // find a match for the initial pattern of every part in the play_pattern
     const part_matches = [];
     rule.parts.forEach((part) => {
         const part_pattern = part.patterns[0];
@@ -39,7 +39,7 @@ function apply_rule(rule) {
         return;
     }
 
-    // apply the rule to the board
+    // apply the rule to the play_pattern
     apply_matches_in_target(part_matches, target_pattern);
     console.log('rule applied', rule.id);
 }

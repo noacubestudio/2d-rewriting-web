@@ -16,6 +16,32 @@ body {
     background: #555;
 }
 
+/* actions */
+.actions {
+    background: #55555590;
+    position: absolute;
+    bottom: 0; left: 0;
+    padding: 6px;
+    z-index: 20;
+}
+
+.actions > button {
+    background: #222;
+    color: #fff;
+    outline: 1px solid #777;
+    outline-offset: -0.5px;
+    border: none;
+    border-radius: 0;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+.actions > button:hover {
+    background: #444;
+}
+.actions > button:active {
+    background: #555;
+}
+
 /* rules */
 .rules {
     display: flex;
@@ -24,6 +50,7 @@ body {
     padding: 12px;
     height: 100vh;
     overflow: auto;
+    padding-bottom: 200px;
 }
 .rule, .rule-part {
     width: fit-content;

@@ -1,37 +1,38 @@
 // constants
-const TILE_SIZE = 8;
-const PIXEL_SCALE = 8;
-const BOARD_TILES_X = 8;
-const BOARD_TILES_Y = 8;
+const TILE_SIZE = 5;
+const PIXEL_SCALE = 14;
+const PLAY_TILES_X = 8;
+const PLAY_TILES_Y = 8;
 
 const rules_container = document.getElementById("rules-container");
 const screen_container = document.getElementById("screen-container");
+const actions_container = document.getElementById("actions-container");
 
-const KEY_BINDINGS = [
-    { keys: ["Enter"                ], action: () => apply_selected_rule() },
-    { keys: ["Delete"               ], action: () => delete_selection() },
-    { keys: ["w"                    ], action: () => clear_selection() },
-    { keys: ["d"                    ], action: () => duplicate_selection() },
-    { keys: ["r"                    ], action: () => rotate_patterns_in_selection() },
-    { keys: ["h"                    ], action: () => flip_patterns_in_selection(true, false) },
-    { keys: ["v"                    ], action: () => flip_patterns_in_selection(false, true) },
-    { keys: ["ArrowUp"              ], action: () => reorder_selection(-1) },
-    { keys: ["ArrowDown"            ], action: () => reorder_selection(1) },
-    { keys: ["ArrowLeft"            ], action: () => reorder_selection(-1) },
-    { keys: ["ArrowRight"           ], action: () => reorder_selection(1) },
-    { keys: ["ArrowUp"   , "Control"], action: () => resize_patterns_in_selection(0,-1) },
-    { keys: ["ArrowDown" , "Control"], action: () => resize_patterns_in_selection(0,1) },
-    { keys: ["ArrowLeft" , "Control"], action: () => resize_patterns_in_selection(-1,0) },
-    { keys: ["ArrowRight", "Control"], action: () => resize_patterns_in_selection(1,0) },
-    { keys: ["ArrowUp"   , "Alt"    ], action: () => shift_patterns_in_selection(0,-1) },
-    { keys: ["ArrowDown" , "Alt"    ], action: () => shift_patterns_in_selection(0,1) },
-    { keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
-    { keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
+const ACTIONS = [
+    { hint: "✅ Run Rule"   , keys: ["Enter"                ], action: () => apply_selected_rule() },
+    { hint: "❌ Delete"     , keys: ["Delete"               ], action: () => delete_selection() },
+    { hint: "🧼 Clear"      , keys: ["w"                    ], action: () => clear_selection() },
+    { hint: "📄 Duplicate"  , keys: ["d"                    ], action: () => duplicate_selection() },
+    { hint: null            , keys: ["ArrowUp"              ], action: () => reorder_selection(-1) },
+    { hint: null            , keys: ["ArrowDown"            ], action: () => reorder_selection(1) },
+    { hint: "⬅️ Swap Back"  , keys: ["ArrowLeft"            ], action: () => reorder_selection(-1) },
+    { hint: "➡️ Swap Next"  , keys: ["ArrowRight"           ], action: () => reorder_selection(1) },
+    { hint: "➖ Height"     , keys: ["ArrowUp"   , "Control"], action: () => resize_patterns_in_selection(0,-1) },
+    { hint: "➕ Height"     , keys: ["ArrowDown" , "Control"], action: () => resize_patterns_in_selection(0,1) },
+    { hint: "➖ Width"      , keys: ["ArrowLeft" , "Control"], action: () => resize_patterns_in_selection(-1,0) },
+    { hint: "➕ Width"      , keys: ["ArrowRight", "Control"], action: () => resize_patterns_in_selection(1,0) },
+    { hint: "🔃 Rotate"     , keys: ["r"                    ], action: () => rotate_patterns_in_selection() },
+    { hint: "↔️ Flip Hor."  , keys: ["h"                    ], action: () => flip_patterns_in_selection(true, false) },
+    { hint: "↕️ Flip Ver."  , keys: ["v"                    ], action: () => flip_patterns_in_selection(false, true) },
+    { hint: "⬆️ Shift Up"   , keys: ["ArrowUp"   , "Alt"    ], action: () => shift_patterns_in_selection(0,-1) },
+    { hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: () => shift_patterns_in_selection(0,1) },
+    { hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
+    { hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
 ];
 
 // state to save/load
 const rules = [];
-let board = {};
+let play_pattern = {};
 
 // editor state
 let id_counter = 0;
@@ -39,7 +40,6 @@ const ui_state = {
   is_drawing: false,
   selected_palette_value: 1,
   draw_value: 1,
-  clipboard: [], // TODO
   selected_path: null,
 };
 
@@ -51,7 +51,7 @@ document.addEventListener("keydown", (e) => {
         ...(e.altKey ? ["Alt"] : []),
     ]);
 
-    for (const binding of KEY_BINDINGS) {
+    for (const binding of ACTIONS) {
         if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
             e.preventDefault();
             binding.action();
@@ -59,6 +59,30 @@ document.addEventListener("keydown", (e) => {
         }
     }
 });
+
+function prettify_keys(keys) {
+    return keys.map(key => {
+        switch (key) {
+            case "ArrowUp": return "↑";
+            case "ArrowDown": return "↓";
+            case "ArrowLeft": return "←";
+            case "ArrowRight": return "→";
+            case "Control": return "Ctrl";
+            default: return key.toUpperCase();
+        }
+    }).join(" + ");
+}
+
+function render_action_buttons() {
+    ACTIONS.forEach(({hint, action, keys}) => {
+        if (!hint) return; // skip
+        const btn = document.createElement("button");
+        btn.textContent = hint;
+        btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
+        btn.addEventListener("click", action);
+        actions_container.appendChild(btn);
+    });
+}
 
 function value_to_color(value) { 
     // TODO: think about how to add wildcard color
@@ -230,7 +254,7 @@ function render_play_pattern() {
 
     const canvas = document.getElementById("screen-canvas");
     const wrapEl = document.querySelector("#screen-container .screen-wrap");
-    const pattern = board;
+    const pattern = play_pattern;
 
     canvas.style.width = `${pattern.width * PIXEL_SCALE}px`;
     canvas.style.height = `${pattern.height * PIXEL_SCALE}px`;
@@ -279,6 +303,7 @@ function init() {
         render_selection_change(old_path, new_path);
     });
 
+    // init rules
     initial_rule();
     render_all_rules();
 
@@ -293,6 +318,9 @@ function init() {
 
     initial_play_pattern();
     render_play_pattern();
+
+    // init actions
+    render_action_buttons();
 }
 init();
 
