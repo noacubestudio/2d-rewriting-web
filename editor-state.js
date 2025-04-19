@@ -194,11 +194,9 @@ function rotate_patterns_in_selection() {
 }
 
 function resize_patterns_in_selection(x_direction, y_direction) {
-    const path = { // always resize patterns in the same path together
-        rule_id: ui_state.selected_path.rule_id, 
-        part_id: ui_state.selected_path.part_id
-    };
+    const path = structuredClone(ui_state.selected_path);
     if (path.rule_id) {
+        path.pattern_id = null; // to get all patterns in the rule
         const patterns = get_selected_rule_patterns(path);
         patterns.forEach(pattern => {
             const new_width = Math.max(TILE_SIZE, pattern.width + x_direction * TILE_SIZE);
@@ -209,6 +207,7 @@ function resize_patterns_in_selection(x_direction, y_direction) {
     } else if (path.pattern_id === 'play') {
         const new_width = Math.max(TILE_SIZE, play_pattern.width + x_direction * TILE_SIZE);
         const new_height = Math.max(TILE_SIZE, play_pattern.height + y_direction * TILE_SIZE);
+        console.log('resizing play pattern', new_width, new_height);
         resize_pattern(play_pattern, new_width, new_height);
         render_play_pattern();
     }
