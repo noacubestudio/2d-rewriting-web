@@ -47,8 +47,8 @@ body {
 }
 .pattern-wrap > canvas, .pattern-wrap > .grid {
     image-rendering: pixelated;
-    width: 64px;
-    height: 64px;
+    width: 64px; /* default */
+    height: 64px;  /* default */
 }
 
 /* play screen */
@@ -61,16 +61,13 @@ body {
     position: relative;
     outline: #666 solid 1px;
 }
-.screen-wrap > canvas {
-    image-rendering: pixelated;
-    width: 256px;
-    height: 256px;
-    background: #000;
-    border: 1px solid #777;
-    border-radius: 6px;
-}
 .screen-wrap.selected {
     outline: 1px solid #0ff;
+}
+.screen-wrap > canvas {
+    image-rendering: pixelated;
+    width: 256px; /* default */
+    height: 256px; /* default */
 }
 
 /* shared */
@@ -81,8 +78,8 @@ body {
     z-index: 10;
 }
 .pixel {
-    width: 8px;
-    height: 8px;
+    width: calc(var(--pixel-scale) * 1px);
+    height: calc(var(--pixel-scale) * 1px);
     border: 0.5px solid #99999999;
     background: transparent;
 }

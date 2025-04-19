@@ -68,8 +68,9 @@ function is_pattern_match(pattern, target, x, y) {
 
 function apply_matches_in_target(part_matches, target) {
     part_matches.forEach(({ part, x, y }) => {
-        // choose randomly from the patterns > 0
-        const pattern = part.patterns[Math.floor(Math.random() * part.patterns.length)];
+        // random pattern except the first one, which is the before state
+        const random_replace_index = 1 + Math.floor(Math.random() * (part.patterns.length - 1));
+        const pattern = part.patterns[random_replace_index];
         for (let py = 0; py < pattern.height; py++) {
             for (let px = 0; px < pattern.width; px++) {
                 target.pixels[y + py][x + px] = pattern.pixels[py][px];

@@ -1,13 +1,13 @@
-function initial_rule() {
-    function blank_pattern(w = TILE_SIZE, h = TILE_SIZE) {
-        return {
-            id: generate_id('pat'),
-            width: w, 
-            height: h,
-            pixels: Array.from({ length: h }, () => Array(w).fill(0))
-        };
-    }
+function blank_pattern(w = TILE_SIZE, h = TILE_SIZE) {
+    return {
+        id: generate_id('pat'),
+        width: w, 
+        height: h,
+        pixels: Array.from({ length: h }, () => Array(w).fill(0))
+    };
+}
 
+function initial_rule() {
     rules.push({
         id: generate_id('rule'),
         parts: [
@@ -135,8 +135,7 @@ function reorder_selection(direction) {
         if (target < 0 || target >= rule.parts.length) return;
 
         [rule.parts[index], rule.parts[target]] = [rule.parts[target], rule.parts[index]];
-    }
-    else if (path.rule_id) {
+    } else if (path.rule_id) {
         const index = rules.findIndex(r => r.id === path.rule_id);
         const target = index + direction;
         if (target < 0 || target >= rules.length) return;
@@ -151,7 +150,32 @@ function clear_selection() {
     const path = ui_state.selected_path;
     if (!path) return;
 
-    // TODO
+    if (path.pattern_id === 'play') {
+        board.pixels = Array.from({ length: board.height }, () => Array(board.width).fill(0));
+        render_play_pattern();
+        console.log('cleared play pattern');
+        return;
+    }
+    
+    const { rule, part, pattern } = get_selected_rule_objects(path);
+    
+    if (path.pattern_id && part) {
+        // reset pattern to empty
+        pattern.pixels = Array.from({ length: pattern.height }, () => Array(pattern.width).fill(0));
+    } else if (path.part_id && rule) {
+        // reset part to initial state
+        part.patterns = [blank_pattern(), blank_pattern()];
+    } else if (path.rule_id) {
+        // reset rule to initial state
+        rule.parts = [
+            {
+                id: generate_id('part'),
+                patterns: [blank_pattern(), blank_pattern()]
+            },
+        ]
+    }
+    render_rule_by_id(path.rule_id);
+    console.log('cleared selection', ui_state.selected_path);
 }
 
 function rotate_patterns_in_selection() {
@@ -160,8 +184,9 @@ function rotate_patterns_in_selection() {
         const patterns = get_selected_rule_patterns(path);
         patterns.forEach(pattern => rotate_pattern(pattern, 1));
         render_rule_by_id(path.rule_id);
-    } else if (path.part_id === 'play') {
-        // TODO
+    } else if (path.pattern_id === 'play') {
+        rotate_pattern(board, 1);
+        render_play_pattern();
     }
     console.log('rotated patterns in selection', path);
 }
@@ -179,8 +204,11 @@ function resize_patterns_in_selection(x_direction, y_direction) {
             resize_pattern(pattern, new_width, new_height);
         });
         render_rule_by_id(path.rule_id);
-    } else if (path.part_id === 'play') {
-        // TODO
+    } else if (path.pattern_id === 'play') {
+        const new_width = Math.max(TILE_SIZE, board.width + x_direction * TILE_SIZE);
+        const new_height = Math.max(TILE_SIZE, board.height + y_direction * TILE_SIZE);
+        resize_pattern(board, new_width, new_height);
+        render_play_pattern();
     }
     console.log('resized patterns in selection', path);
 }
@@ -191,10 +219,28 @@ function shift_patterns_in_selection(x_direction, y_direction) {
         const patterns = get_selected_rule_patterns(path);
         patterns.forEach(pattern => shift_pattern(pattern, x_direction, y_direction));
         render_rule_by_id(path.rule_id);
-    } else if (path.part_id === 'play') {
-        // TODO
+    } else if (path.pattern_id === 'play') {
+        shift_pattern(board, x_direction, y_direction);
+        render_play_pattern();
     }
     console.log('shifted patterns in selection', path);
+}
+
+function flip_patterns_in_selection(h_bool, v_bool) {
+    const path = ui_state.selected_path;
+    if (path.rule_id) {
+        const patterns = get_selected_rule_patterns(path);
+        patterns.forEach(pattern => {
+            if (h_bool) flip_pattern(pattern, true);
+            if (v_bool) flip_pattern(pattern, false);
+        });
+        render_rule_by_id(path.rule_id);
+    } else if (path.pattern_id === 'play') {
+        if (h_bool) flip_pattern(board, true);
+        if (v_bool) flip_pattern(board, false);
+        render_play_pattern();
+    }
+    console.log('flipped patterns in selection', path);
 }
 
 
@@ -242,4 +288,14 @@ function shift_pattern(pattern, x_direction, y_direction) {
         }
         pattern.pixels = new_pixels;
     }
+}
+
+function flip_pattern(pattern, horizontal = true) {
+    if (horizontal) {
+        pattern.pixels = pattern.pixels.map(row => row.reverse());
+    } else {
+        pattern.pixels.reverse();
+    }
+    pattern.width = pattern.pixels[0].length;
+    pattern.height = pattern.pixels.length;
 }
