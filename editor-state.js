@@ -55,6 +55,7 @@ function get_selected_rule_patterns(path) {
 function duplicate_selection() {
     const path = ui_state.selected_path;
     if (!path) return;
+    if (path.pattern_id === 'play') return;
 
     const { rule, part, pattern } = get_selected_rule_objects(path);
 
@@ -93,6 +94,7 @@ function duplicate_selection() {
 function delete_selection() {
     const path = ui_state.selected_path;
     if (!path) return;
+    if (path.pattern_id === 'play') return;
 
     const { rule, part, pattern } = get_selected_rule_objects(path);
 
@@ -117,6 +119,7 @@ function delete_selection() {
 function reorder_selection(direction) {
     const path = ui_state.selected_path;
     if (!path) return;
+    if (path.pattern_id === 'play') return;
 
     const { rule, part, pattern } = get_selected_rule_objects(path);
 
@@ -145,17 +148,21 @@ function reorder_selection(direction) {
 }
 
 function clear_selection() {
+    const path = ui_state.selected_path;
+    if (!path) return;
+
     // TODO
 }
 
 function rotate_patterns_in_selection() {
     const path = ui_state.selected_path;
-    if (!path.rule_id) return;
-
-    const patterns = get_selected_rule_patterns(path);
-    patterns.forEach(pattern => rotate_pattern(pattern, 1));
-
-    render_rule_by_id(path.rule_id);
+    if (path.rule_id) {
+        const patterns = get_selected_rule_patterns(path);
+        patterns.forEach(pattern => rotate_pattern(pattern, 1));
+        render_rule_by_id(path.rule_id);
+    } else if (path.part_id === 'play') {
+        // TODO
+    }
     console.log('rotated patterns in selection', path);
 }
 
@@ -164,27 +171,29 @@ function resize_patterns_in_selection(x_direction, y_direction) {
         rule_id: ui_state.selected_path.rule_id, 
         part_id: ui_state.selected_path.part_id
     };
-    if (!path.rule_id) return;
-
-    const patterns = get_selected_rule_patterns(path);
-    patterns.forEach(pattern => {
-        const new_width = Math.max(1, pattern.width + x_direction * TILE_SIZE);
-        const new_height = Math.max(1, pattern.height + y_direction * TILE_SIZE);
-        resize_pattern(pattern, new_width, new_height);
-    });
-
-    render_rule_by_id(path.rule_id);
+    if (path.rule_id) {
+        const patterns = get_selected_rule_patterns(path);
+        patterns.forEach(pattern => {
+            const new_width = Math.max(TILE_SIZE, pattern.width + x_direction * TILE_SIZE);
+            const new_height = Math.max(TILE_SIZE, pattern.height + y_direction * TILE_SIZE);
+            resize_pattern(pattern, new_width, new_height);
+        });
+        render_rule_by_id(path.rule_id);
+    } else if (path.part_id === 'play') {
+        // TODO
+    }
     console.log('resized patterns in selection', path);
 }
 
 function shift_patterns_in_selection(x_direction, y_direction) {
     const path = ui_state.selected_path;
-    if (!path.rule_id) return;
-
-    const patterns = get_selected_rule_patterns(path);
-    patterns.forEach(pattern => shift_pattern(pattern, x_direction, y_direction));
-
-    render_rule_by_id(path.rule_id);
+    if (path.rule_id) {
+        const patterns = get_selected_rule_patterns(path);
+        patterns.forEach(pattern => shift_pattern(pattern, x_direction, y_direction));
+        render_rule_by_id(path.rule_id);
+    } else if (path.part_id === 'play') {
+        // TODO
+    }
     console.log('shifted patterns in selection', path);
 }
 
@@ -215,5 +224,22 @@ function resize_pattern(pattern, new_width, new_height, fill = 0) {
 }
 
 function shift_pattern(pattern, x_direction, y_direction) {
-    // TODO
+    if (y_direction !== 0) {
+        const new_pixels = Array.from({ length: pattern.height }, () => Array(pattern.width).fill(0));
+        for (let y = 0; y < pattern.height; y++) {
+            const new_y = (y + y_direction + pattern.height) % pattern.height;
+            new_pixels[new_y] = pattern.pixels[y];
+        }
+        pattern.pixels = new_pixels;
+    }
+    if (x_direction !== 0) {
+        const new_pixels = pattern.pixels.map(row => Array.from({ length: pattern.width }, () => 0));
+        for (let y = 0; y < pattern.height; y++) {
+            for (let x = 0; x < pattern.width; x++) {
+                const new_x = (x + x_direction + pattern.width) % pattern.width;
+                new_pixels[y][new_x] = pattern.pixels[y][x];
+            }
+        }
+        pattern.pixels = new_pixels;
+    }
 }

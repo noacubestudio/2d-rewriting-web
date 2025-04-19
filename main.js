@@ -1,14 +1,39 @@
 // constants
 const TILE_SIZE = 8;
 const PIXEL_SCALE = 8;
-const rules_container = document.getElementById("rules-container");
+const BOARD_TILES_X = 8;
+const BOARD_TILES_Y = 8;
 
-// misc
-let id_counter = 0;
+const rules_container = document.getElementById("rules-container");
+const screen_container = document.getElementById("screen-container");
+
+const KEY_BINDINGS = [
+    { keys: ["Enter"                ], action: () => apply_selected_rule() },
+    { keys: ["Delete"               ], action: () => delete_selection() },
+    { keys: ["ArrowUp"              ], action: () => reorder_selection(-1) },
+    { keys: ["ArrowDown"            ], action: () => reorder_selection(1) },
+    { keys: ["ArrowLeft"            ], action: () => reorder_selection(-1) },
+    { keys: ["ArrowRight"           ], action: () => reorder_selection(1) },
+    { keys: ["d"                    ], action: () => duplicate_selection() },
+    { keys: ["r"                    ], action: () => rotate_patterns_in_selection() },
+    { keys: ["h"                    ], action: () => flip_patterns_in_selection(true, false) },
+    { keys: ["v"                    ], action: () => flip_patterns_in_selection(false, true) },
+    { keys: ["ArrowUp"   , "Control"], action: () => resize_patterns_in_selection(0,-1) },
+    { keys: ["ArrowDown" , "Control"], action: () => resize_patterns_in_selection(0,1) },
+    { keys: ["ArrowLeft" , "Control"], action: () => resize_patterns_in_selection(-1,0) },
+    { keys: ["ArrowRight", "Control"], action: () => resize_patterns_in_selection(1,0) },
+    { keys: ["ArrowUp"   , "Alt"    ], action: () => shift_patterns_in_selection(0,-1) },
+    { keys: ["ArrowDown" , "Alt"    ], action: () => shift_patterns_in_selection(0,1) },
+    { keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
+    { keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
+];
 
 // state to save/load
 const rules = [];
+let board = {};
 
+// editor state
+let id_counter = 0;
 const ui_state = {
   is_drawing: false,
   selected_palette_value: 1,
@@ -18,25 +43,20 @@ const ui_state = {
 };
 
 document.addEventListener("keydown", (e) => {
-    if (e.key === "Delete") {
-        delete_selection();
-    } else if (e.key === "ArrowUp" && e.ctrlKey) {
-        resize_patterns_in_selection(0, -1);
-    } else if (e.key === "ArrowDown" && e.ctrlKey) {
-        resize_patterns_in_selection(0, 1);
-    } else if (e.key === "ArrowLeft" && e.ctrlKey) {
-        resize_patterns_in_selection(-1, 0);
-    } else if (e.key === "ArrowRight" && e.ctrlKey) {
-        resize_patterns_in_selection(1, 0);
-    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-        reorder_selection(-1);
-    } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-        reorder_selection(1);
-    } else if (e.key === "d") {
-        duplicate_selection();
-    } else if (e.key === "r") {
-        rotate_patterns_in_selection();
-    } 
+    const pressed = new Set([
+        e.key,
+        ...(e.ctrlKey ? ["Control"] : []),
+        ...(e.shiftKey ? ["Shift"] : []),
+        ...(e.altKey ? ["Alt"] : []),
+    ]);
+
+    for (const binding of KEY_BINDINGS) {
+        if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
+            e.preventDefault();
+            binding.action();
+            break;
+        }
+    }
 });
 
 function value_to_color(value) { 
@@ -205,26 +225,73 @@ function render_rule_by_id(rule_id) {
     console.log("render_rule_by_id", rule_id, index);
 }
 
+function render_play_pattern() {
+
+    const canvas = document.getElementById("screen-canvas");
+    const wrapEl = document.querySelector("#screen-container .screen-wrap");
+    const pattern = board;
+
+    canvas.style.width = `${pattern.width * PIXEL_SCALE}px`;
+    canvas.style.height = `${pattern.height * PIXEL_SCALE}px`;
+    draw_pattern_to_canvas(canvas, pattern);
+
+    const path = ui_state.selected_path;
+    wrapEl.querySelectorAll(".grid").forEach(grid => grid.remove());
+    if (path?.pattern_id === 'play') {
+        const grid = create_editor_div(pattern, () => { 
+            draw_pattern_to_canvas(canvas, pattern);
+        });
+        wrapEl.appendChild(grid);
+    }
+}
+
+function render_selection_change(old_path, new_path) {
+    const old_id = old_path?.rule_id;
+    const new_id = new_path?.rule_id;
+    // render deselected and selected rule
+    if (old_id && old_id !== new_id) render_rule_by_id(old_id);
+    if (new_id) render_rule_by_id(new_id);
+    // render deselected or selected play pattern
+    if (old_path?.pattern_id === 'play' || new_path?.pattern_id === 'play') render_play_pattern();
+}
+
 function init() {
     // click event for selection
     rules_container.addEventListener("click", (e) => {
         const old_path = structuredClone(ui_state.selected_path);
         const new_path = build_path(e.target);
-        const should_toggle = 
-            old_path && paths_equal(old_path, new_path) && 
-            new_path.length < 3
+        const same = old_path && paths_equal(old_path, new_path);
+        const should_toggle = same && new_path.length < 3
         
         ui_state.selected_path = should_toggle ? null : new_path;
+        if (same && !should_toggle) return;
+        render_selection_change(old_path, new_path);
+    });
 
-        // render selection change
-        const old_id = old_path?.rule_id;
-        const new_id = new_path?.rule_id;
-        if (old_id && old_id !== new_id) render_rule_by_id(old_id);
-        if (new_id) render_rule_by_id(new_id);
+    screen_container.addEventListener("click", (e) => {
+        const old_path = structuredClone(ui_state.selected_path);
+        const new_path = { pattern_id: 'play' };
+        const same = old_path && paths_equal(old_path, new_path);
+
+        if (same) return;
+        ui_state.selected_path = new_path;
+        render_selection_change(old_path, new_path);
     });
 
     initial_rule();
     render_all_rules();
+
+    // init screen
+    const wrapEl = document.createElement("div");
+    wrapEl.className = "screen-wrap";
+    screen_container.appendChild(wrapEl);
+
+    const screen_canvas = document.createElement("canvas");
+    screen_canvas.id = "screen-canvas";
+    wrapEl.appendChild(screen_canvas);
+
+    initial_play_pattern();
+    render_play_pattern();
 }
 init();
 
