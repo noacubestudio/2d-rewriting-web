@@ -1,5 +1,6 @@
 function initial_play_pattern() {
-    function blank_play_pattern(w = PLAY_TILES_X * TILE_SIZE, h = PLAY_TILES_Y * TILE_SIZE) {
+    // initial
+    function blank_play_pattern(w = 8 * TILE_SIZE, h = 8 * TILE_SIZE) {
         return {
             id: 'play',
             width: w,
@@ -18,8 +19,8 @@ function apply_selected_rule() {
     const { rule } = get_selected_rule_objects(path);
     if (!rule) return;
 
-    apply_rule(rule);
-    render_play_pattern();
+    const was_successful = apply_rule(rule);
+    if (was_successful) render_play_pattern();
 }
 
 function apply_rule(rule) {
@@ -36,12 +37,13 @@ function apply_rule(rule) {
 
     if (part_matches.length < rule.parts.length) {
         console.log('not all parts matched');
-        return;
+        return false;
     }
 
     // apply the rule to the play_pattern
     apply_matches_in_target(part_matches, target_pattern);
     console.log('rule applied', rule.id);
+    return true;
 }
 
 function find_pattern_in_target(pattern, target) {

@@ -1,8 +1,6 @@
 // constants
 const TILE_SIZE = 5;
 const PIXEL_SCALE = 14;
-const PLAY_TILES_X = 8;
-const PLAY_TILES_Y = 8;
 
 const rules_container = document.getElementById("rules-container");
 const screen_container = document.getElementById("screen-container");
@@ -162,6 +160,8 @@ function build_path(el) {
     const part = el.closest(".rule-part");
     const wrap = el.closest(".pattern-wrap");
 
+    if (!rule && !part && !wrap) return null;
+
     return {
         rule_id: rule?.dataset.id,
         part_id: part?.dataset.id,
@@ -274,6 +274,7 @@ function render_play_pattern() {
         });
         wrapEl.appendChild(grid);
     }
+    console.log("render_play_pattern", pattern.id);
 }
 
 function render_selection_change(old_path, new_path) {
@@ -333,6 +334,7 @@ init();
 
 // helpers
 function paths_equal(a, b) {
+    if (!a || !b) return (a === b) // at least one is null
     return a.rule_id === b.rule_id && a.part_id === b.part_id && a.pattern_id === b.pattern_id;
 }
 

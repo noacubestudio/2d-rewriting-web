@@ -182,6 +182,8 @@ function clear_selection() {
 
 function rotate_patterns_in_selection() {
     const path = ui_state.selected_path;
+    if (!path) return;
+
     if (path.rule_id) {
         const patterns = get_selected_rule_patterns(path);
         patterns.forEach(pattern => rotate_pattern(pattern, 1));
@@ -195,6 +197,8 @@ function rotate_patterns_in_selection() {
 
 function resize_patterns_in_selection(x_direction, y_direction) {
     const path = structuredClone(ui_state.selected_path);
+    if (!path) return;
+
     if (path.rule_id) {
         path.pattern_id = null; // to get all patterns in the rule
         const patterns = get_selected_rule_patterns(path);
@@ -216,6 +220,8 @@ function resize_patterns_in_selection(x_direction, y_direction) {
 
 function shift_patterns_in_selection(x_direction, y_direction) {
     const path = ui_state.selected_path;
+    if (!path) return;
+
     if (path.rule_id) {
         const patterns = get_selected_rule_patterns(path);
         patterns.forEach(pattern => shift_pattern(pattern, x_direction, y_direction));
@@ -229,6 +235,8 @@ function shift_patterns_in_selection(x_direction, y_direction) {
 
 function flip_patterns_in_selection(h_bool, v_bool) {
     const path = ui_state.selected_path;
+    if (!path) return;
+    
     if (path.rule_id) {
         const patterns = get_selected_rule_patterns(path);
         patterns.forEach(pattern => {
