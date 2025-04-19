@@ -179,7 +179,7 @@ function render_rule(rule) {
         partEl.className = "rule-part";
         partEl.dataset.id = part.id;
 
-        part.patterns.forEach(pattern => {
+        part.patterns.forEach((pattern, pat_index) => {
             const wrapEl = document.createElement("div");
             wrapEl.className = "pattern-wrap";
             wrapEl.dataset.id = pattern.id;
@@ -199,6 +199,12 @@ function render_rule(rule) {
             }
 
             partEl.appendChild(wrapEl);
+
+            if (pat_index === 0) {
+                const arrowEl = document.createElement("label");
+                arrowEl.textContent = '▶';
+                partEl.appendChild(arrowEl);
+            }
         });
 
         ruleEl.appendChild(partEl);

@@ -102,17 +102,19 @@ function delete_selection() {
         if (part.patterns.length <= 2) return; // keep at least 2 patterns
         const index = part.patterns.findIndex(p => p.id === path.pattern_id);
         part.patterns.splice(index, 1);
+        ui_state.selected_path = part.patterns[index - 1] ? { rule_id: path.rule_id, part_id: path.part_id, pattern_id: part.patterns[index - 1].id } : null;
     } else if (path.part_id && rule) {
         if (rule.parts.length <= 1) return; // keep at least 1 part
         const index = rule.parts.findIndex(p => p.id === path.part_id);
         rule.parts.splice(index, 1);
+        ui_state.selected_path = rule.parts[index - 1] ? { rule_id: path.rule_id, part_id: rule.parts[index - 1].id } : null;
     } else if (path.rule_id) {
         if (rules.length <= 1) return; // keep at least 1 rule
         const index = rules.findIndex(r => r.id === path.rule_id);
         rules.splice(index, 1);
+        ui_state.selected_path = rules[index - 1] ? { rule_id: rules[index - 1].id } : null;
     }
     render_all_rules();
-    ui_state.selected_path = null;
 }
 
 
