@@ -10,33 +10,34 @@ const actions_container = document.getElementById("actions-container");
 const tool_settings_container = document.getElementById("tool-settings-container");
 
 const ACTIONS = [
-    { hint: "✅ Run Rule"   , keys: ["Enter"                ], action: () => apply_selected_rule() },
-    { hint: "❌ Delete"     , keys: ["Delete"               ], action: () => delete_selection() },
-    { hint: "🧼 Clear"      , keys: ["w"                    ], action: () => clear_selection() },
-    { hint: "📄 Duplicate"  , keys: ["d"                    ], action: () => duplicate_selection() },
-    { hint: null            , keys: ["ArrowUp"              ], action: () => reorder_selection(-1) },
-    { hint: null            , keys: ["ArrowDown"            ], action: () => reorder_selection(1) },
-    { hint: "⬅️ Swap Back"  , keys: ["ArrowLeft"            ], action: () => reorder_selection(-1) },
-    { hint: "➡️ Swap Next"  , keys: ["ArrowRight"           ], action: () => reorder_selection(1) },
-    { hint: "➖ Height"     , keys: ["ArrowUp"   , "Control"], action: () => resize_patterns_in_selection(0,-1) },
-    { hint: "➕ Height"     , keys: ["ArrowDown" , "Control"], action: () => resize_patterns_in_selection(0,1) },
-    { hint: "➖ Width"      , keys: ["ArrowLeft" , "Control"], action: () => resize_patterns_in_selection(-1,0) },
-    { hint: "➕ Width"      , keys: ["ArrowRight", "Control"], action: () => resize_patterns_in_selection(1,0) },
-    { hint: "🔃 Rotate"     , keys: ["r"                    ], action: () => rotate_patterns_in_selection() },
-    { hint: "↔️ Flip Hor."  , keys: ["h"                    ], action: () => flip_patterns_in_selection(true, false) },
-    { hint: "↕️ Flip Ver."  , keys: ["v"                    ], action: () => flip_patterns_in_selection(false, true) },
-    { hint: "⬆️ Shift Up"   , keys: ["ArrowUp"   , "Alt"    ], action: () => shift_patterns_in_selection(0,-1) },
-    { hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: () => shift_patterns_in_selection(0,1) },
-    { hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
-    { hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
-    { hint: "♻️ Undo Action", keys: ["z"                    ], action: 'undo' },
+    { id: "run"        , hint: "✅ Run Rule"   , keys: ["Enter"                ], action: () => apply_selected_rule() },
+    { id: "delete"     , hint: "❌ Delete"     , keys: ["Delete"               ], action: () => delete_selection() },
+    { id: null         , hint: "🧼 Clear"      , keys: ["w"                    ], action: () => clear_selection() },
+    { id: "duplicate"  , hint: "📄 Duplicate"  , keys: ["d"                    ], action: () => duplicate_selection() },
+    { id: null         , hint: null            , keys: ["ArrowUp"              ], action: () => reorder_selection(-1) },
+    { id: null         , hint: null            , keys: ["ArrowDown"            ], action: () => reorder_selection(1) },
+    { id: "swap"       , hint: "⬅️ Swap Back"  , keys: ["ArrowLeft"            ], action: () => reorder_selection(-1) },
+    { id: "swap"       , hint: "➡️ Swap Next"  , keys: ["ArrowRight"           ], action: () => reorder_selection(1) },
+    { id: null         , hint: "➖ Height"     , keys: ["ArrowUp"   , "Control"], action: () => resize_patterns_in_selection(0,-1) },
+    { id: null         , hint: "➕ Height"     , keys: ["ArrowDown" , "Control"], action: () => resize_patterns_in_selection(0,1) },
+    { id: null         , hint: "➖ Width"      , keys: ["ArrowLeft" , "Control"], action: () => resize_patterns_in_selection(-1,0) },
+    { id: null         , hint: "➕ Width"      , keys: ["ArrowRight", "Control"], action: () => resize_patterns_in_selection(1,0) },
+    { id: null         , hint: "🔃 Rotate"     , keys: ["r"                    ], action: () => rotate_patterns_in_selection() },
+    { id: null         , hint: "↔️ Flip Hor."  , keys: ["h"                    ], action: () => flip_patterns_in_selection(true, false) },
+    { id: null         , hint: "↕️ Flip Ver."  , keys: ["v"                    ], action: () => flip_patterns_in_selection(false, true) },
+    { id: null         , hint: "⬆️ Shift Up"   , keys: ["ArrowUp"   , "Alt"    ], action: () => shift_patterns_in_selection(0,-1) },
+    { id: null         , hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: () => shift_patterns_in_selection(0,1) },
+    { id: null         , hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
+    { id: null         , hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
+    { id: "undo"       , hint: "♻️ Undo Action", keys: ["z"                    ], action: () => undo_action() },
 ];
 
 const TOOL_SETTINGS = [
-    { group: "Draw Color:", group_index: 1, hint: "White"   , keys: ["1"         ], action: () => tool_color(1) , color: 1  },
-    { group: "Draw Color:", group_index: 2, hint: "Light"   , keys: ["2"         ], action: () => tool_color(2) , color: 2  },
-    { group: "Draw Color:", group_index: 3, hint: "Dark"    , keys: ["3"         ], action: () => tool_color(3) , color: 3  },
-    { group: "Draw Color:", group_index: 4, hint: "Wildcard", keys: ["4"         ], action: () => tool_color(-1), color: -1 },
+    { group: "Draw Color:", group_index: 1, hint: "White"   , keys: ["1"], action: () => tool_color(1) , color: 1  },
+    { group: "Draw Color:", group_index: 2, hint: "Light"   , keys: ["2"], action: () => tool_color(2) , color: 2  },
+    { group: "Draw Color:", group_index: 3, hint: "Dark"    , keys: ["3"], action: () => tool_color(3) , color: 3  },
+    { group: "Draw Color:", group_index: 4, hint: "Black"   , keys: ["4"], action: () => tool_color(0) , color: 0  },
+    { group: "Draw Color:", group_index: 5, hint: "Wildcard", keys: ["5"], action: () => tool_color(-1), color: -1 },
 ];
 
 // state to save/load
@@ -68,7 +69,7 @@ document.addEventListener("keydown", (e) => {
     for (const binding of ACTIONS) {
         if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
             e.preventDefault();
-            do_action(binding.action);
+            do_action(binding.action, binding.id);
             break;
         }
     }
@@ -92,9 +93,19 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-function do_action(action) {
-    if (action === 'undo') {
-        undo_action();
+function do_action(action, id) {
+    if (id === 'undo') {
+        // this action is not undoable
+        action();
+        return;
+    } else if (id === 'run') {
+        // this action changes the state of the play pattern, not the selected pattern
+        const previous_state = structuredClone(play_pattern);
+        const success = action();
+        if (success) {
+            undos.play_pattern.push(previous_state);
+            if (undos.play_pattern.length > UNDO_STACK_LIMIT) undos.play_pattern.shift();
+        }
         return;
     }
     
@@ -166,15 +177,16 @@ function prettify_keys(keys) {
 }
 
 function render_menu_buttons() {
-
     actions_container.classList.add("hidden"); // start hidden
 
-    ACTIONS.forEach(({hint, action, keys}) => {
+    ACTIONS.forEach(({hint, action, id, keys}) => {
         if (!hint) return; // skip
         const btn = document.createElement("button");
         btn.textContent = hint;
         btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
-        btn.addEventListener("click", () => { do_action(action); });
+        btn.className = "action-button";
+        btn.classList.add(id ? "action-" + id : "action-button");
+        btn.addEventListener("click", () => { do_action(action, id); });
         actions_container.appendChild(btn);
     });
 
@@ -210,6 +222,32 @@ function render_menu_buttons() {
         });
         tool_settings_container.appendChild(btn);
     });
+}
+
+function change_actions_after_selection() {
+    const path = ui_state.selected_path;
+    if (!path) {
+        actions_container.classList.add("hidden");
+        return;
+    } 
+    actions_container.classList.remove("hidden");
+
+    // show/hide actions based on selection
+    const rules_only = ["run", "delete", "duplicate", "swap"];
+
+    if (path.pattern_id === 'play') {
+        rules_only.forEach(id => {
+            actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
+        });
+    } else {
+        rules_only.forEach(id => {
+            actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.remove("hidden"));
+        });
+    }
+
+    // some actions change based on selection
+    const undo_button_text = "♻️ Undo " + (path.pattern_id === 'play' ? "(Main Grid)" : "(Rule Editor)");
+    actions_container.querySelector(`.action-undo`).textContent = undo_button_text;
 }
 
 function value_to_color(value) { 
@@ -277,7 +315,6 @@ function create_editor_div(pattern, on_change) {
     });
 
     grid.addEventListener("mouseup", () => ui_state.is_drawing = false);
-    grid.addEventListener("mouseleave", () => ui_state.is_drawing = false);
 
     grid.addEventListener("mouseover", (e) => {
         if (!ui_state.is_drawing) return;
@@ -425,11 +462,7 @@ function render_selection_change(old_path, new_path) {
     if (old_path?.pattern_id === 'play' || new_path?.pattern_id === 'play') render_play_pattern();
 
     // hide actions if nothing selected
-    if (!new_path) {
-        actions_container.classList.add("hidden");
-    } else {
-        actions_container.classList.remove("hidden");
-    }
+    change_actions_after_selection();
 }
 
 function init() {
@@ -454,6 +487,11 @@ function init() {
         ui_state.selected_path = new_path;
         render_selection_change(old_path, new_path);
     });
+
+    // just in case
+    window.addEventListener("blur", (e) => ui_state.is_drawing = false);
+    window.addEventListener("pointercancel", (e) => ui_state.is_drawing = false);
+    window.addEventListener("mouseup", (e) => ui_state.is_drawing = false);
 
     // init rules
     initial_rule();

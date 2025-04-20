@@ -30,6 +30,8 @@ function apply_selected_rule() {
     }
     if (application_count > 0) render_play_pattern();
     console.log('applied rule', rule.id, 'count', application_count);
+
+    return application_count > 0;
 }
 
 function apply_rule(rule) {

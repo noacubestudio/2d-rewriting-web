@@ -36,7 +36,6 @@ body {
 }
 .tool-settings {
     background: #333;
-    
 }
 .tool-settings > label {
     color: #fff;
@@ -64,6 +63,9 @@ body {
 }
 .tool-settings > button.active {
     box-shadow: inset 0 0 0 2px #0ff, inset 0 0 0 3px black;
+}
+.actions > button.hidden {
+    display: none;
 }
 
 /* rules */
