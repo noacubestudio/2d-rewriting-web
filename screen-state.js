@@ -21,11 +21,11 @@ function apply_selected_rule() {
 
     let success = true;
     let application_count = 0;
-    while (success && application_count < 10000) {
+    while (success && application_count < RULE_APPLICATION_LIMIT) {
         success = apply_rule(rule);
         application_count++;
     }
-    if (application_count === 10000) {
+    if (application_count === RULE_APPLICATION_LIMIT) {
         console.warn('Rule application limit reached, stopping.');
     }
     if (application_count > 0) render_play_pattern();

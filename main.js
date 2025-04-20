@@ -1,6 +1,8 @@
 // constants
 const TILE_SIZE = 5;
 const PIXEL_SCALE = 14;
+const RULE_APPLICATION_LIMIT = 10000;
+const UNDO_STACK_LIMIT = 64;
 
 const rules_container = document.getElementById("rules-container");
 const screen_container = document.getElementById("screen-container");
@@ -26,13 +28,19 @@ const ACTIONS = [
     { hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: () => shift_patterns_in_selection(0,1) },
     { hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
     { hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
+    { hint: "♻️ Undo Action", keys: ["z"                    ], action: 'undo' },
 ];
 
 // state to save/load
-const rules = [];
+let rules = [];
 let play_pattern = {};
 
 // editor state
+const undos = {
+    rules: [],
+    rule_selection: [],
+    play_pattern: [],
+};
 let id_counter = 0;
 const ui_state = {
   is_drawing: false,
@@ -52,11 +60,62 @@ document.addEventListener("keydown", (e) => {
     for (const binding of ACTIONS) {
         if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
             e.preventDefault();
-            binding.action();
+            do_action(binding.action);
             break;
         }
     }
 });
+
+function do_action(action) {
+    if (action === 'undo') {
+        undo_action();
+        return;
+    }
+    
+    // save state for undo
+    const play_selected = ui_state.selected_path?.pattern_id === 'play';
+    const previous_state = structuredClone(play_selected ? play_pattern : rules);
+    const previous_selection = structuredClone(ui_state.selected_path);
+    // do action and push to undo stack
+    const success = action();
+    if (success) {
+        const undo_stack = play_selected ? undos.play_pattern : undos.rules;
+        undo_stack.push(previous_state);
+        if (!play_selected) undos.rule_selection.push(previous_selection);
+
+        if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
+        if (undos.rule_selection.length > UNDO_STACK_LIMIT) undos.rule_selection.shift();
+    }
+}
+
+function undo_action() {
+    if (ui_state.selected_path?.pattern_id === 'play') {
+        const undo_stack = undos.play_pattern;
+        if (undo_stack.length > 0) {
+            play_pattern = undo_stack.pop();
+            render_play_pattern();
+            console.log("undo play_pattern", play_pattern.id);
+        }
+    } else {
+        const undo_stack = undos.rules;
+        if (undo_stack.length > 0) {
+            // undo action on rules
+            rules = undo_stack.pop();
+            render_all_rules();
+
+            // undo selection to state before action
+            const old_path = structuredClone(ui_state.selected_path);
+            const new_path = undos.rule_selection.pop();
+            const same = old_path && paths_equal(old_path, new_path);
+            if (!same) {
+                ui_state.selected_path = new_path;
+                render_selection_change(old_path, new_path);
+            }
+
+            console.log("undo rules");
+        }
+    }
+}
 
 function prettify_keys(keys) {
     return keys.map(key => {
@@ -77,7 +136,7 @@ function render_action_buttons() {
         const btn = document.createElement("button");
         btn.textContent = hint;
         btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
-        btn.addEventListener("click", action);
+        btn.addEventListener("click", () => { do_action(action); });
         actions_container.appendChild(btn);
     });
 }

@@ -89,6 +89,7 @@ function duplicate_selection() {
 
     render_all_rules();
     console.log('duplicated selection', ui_state.selected_path);
+    return true;
 }
 
 function delete_selection() {
@@ -115,6 +116,7 @@ function delete_selection() {
         ui_state.selected_path = rules[index - 1] ? { rule_id: rules[index - 1].id } : null;
     }
     render_all_rules();
+    return true;
 }
 
 
@@ -146,6 +148,7 @@ function reorder_selection(direction) {
     }
     render_all_rules();
     console.log('reordered selection', ui_state.selected_path);
+    return true;
 }
 
 function clear_selection() {
@@ -178,6 +181,7 @@ function clear_selection() {
     }
     render_rule_by_id(path.rule_id);
     console.log('cleared selection', ui_state.selected_path);
+    return true;
 }
 
 function rotate_patterns_in_selection() {
@@ -193,6 +197,7 @@ function rotate_patterns_in_selection() {
         render_play_pattern();
     }
     console.log('rotated patterns in selection', path);
+    return true;
 }
 
 function resize_patterns_in_selection(x_direction, y_direction) {
@@ -216,6 +221,7 @@ function resize_patterns_in_selection(x_direction, y_direction) {
         render_play_pattern();
     }
     console.log('resized patterns in selection', path);
+    return true;
 }
 
 function shift_patterns_in_selection(x_direction, y_direction) {
@@ -231,6 +237,7 @@ function shift_patterns_in_selection(x_direction, y_direction) {
         render_play_pattern();
     }
     console.log('shifted patterns in selection', path);
+    return true;
 }
 
 function flip_patterns_in_selection(h_bool, v_bool) {
@@ -250,6 +257,7 @@ function flip_patterns_in_selection(h_bool, v_bool) {
         render_play_pattern();
     }
     console.log('flipped patterns in selection', path);
+    return true;
 }
 
 
