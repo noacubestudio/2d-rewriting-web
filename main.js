@@ -33,10 +33,10 @@ const ACTIONS = [
 ];
 
 const TOOL_SETTINGS = [
-    { group: "Draw Color:", group_index: 1, hint: "1"       , keys: ["1"         ], action: () => tool_color(1) },
-    { group: "Draw Color:", group_index: 2, hint: "2"       , keys: ["2"         ], action: () => tool_color(2) },
-    { group: "Draw Color:", group_index: 3, hint: "3"       , keys: ["3"         ], action: () => tool_color(3) },
-    { group: "Draw Color:", group_index: 4, hint: "Wildcard", keys: ["4"         ], action: () => tool_color(-1) },
+    { group: "Draw Color:", group_index: 1, hint: "White"   , keys: ["1"         ], action: () => tool_color(1) , color: 1  },
+    { group: "Draw Color:", group_index: 2, hint: "Light"   , keys: ["2"         ], action: () => tool_color(2) , color: 2  },
+    { group: "Draw Color:", group_index: 3, hint: "Dark"    , keys: ["3"         ], action: () => tool_color(3) , color: 3  },
+    { group: "Draw Color:", group_index: 4, hint: "Wildcard", keys: ["4"         ], action: () => tool_color(-1), color: -1 },
 ];
 
 // state to save/load
@@ -178,7 +178,7 @@ function render_menu_buttons() {
         actions_container.appendChild(btn);
     });
 
-    TOOL_SETTINGS.forEach(({group, group_index, hint, action, keys}) => {
+    TOOL_SETTINGS.forEach(({group, group_index, hint, action, keys, color}) => {
         if (!hint) return; // skip
         const btn = document.createElement("button");
         btn.className = "tool-button";
@@ -191,6 +191,15 @@ function render_menu_buttons() {
             tool_settings_container.appendChild(group_label);
             btn.classList.add("active"); // default active
         } 
+        if (color) {
+            btn.classList.add("color-button");
+            if (color !== -1) {
+                btn.style.backgroundColor = value_to_color(color);
+            } else {
+                btn.style.backgroundImage = "repeating-linear-gradient(45deg,#666,#666 1px,#333 1px,#333 4px)";
+            }
+            btn.style.color = contrast_to_color(color);
+        }
         btn.textContent = hint;
         btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
         btn.addEventListener("click", () => { 
@@ -207,6 +216,12 @@ function value_to_color(value) {
     if (value === -1) return "transparent"; // wildcard
     const PIXEL_PALLETTE = ["#222", "#fff", "#6cd9b5", "#036965"];
     return PIXEL_PALLETTE[value] || "magenta";
+}
+
+function contrast_to_color(value) {
+    if (value === -1) return "white";
+    const TEXT_ON_PIXEL_PALLETTE = ["#fff", "#000", "#000", "#fff"];
+    return TEXT_ON_PIXEL_PALLETTE[value] || "purple";
 }
 
 function draw_pattern_to_canvas(canvas, pattern) {
