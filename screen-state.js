@@ -67,7 +67,9 @@ function find_pattern_in_target(pattern, target) {
 function is_pattern_match(pattern, target, x, y) {
     for (let py = 0; py < pattern.height; py++) {
         for (let px = 0; px < pattern.width; px++) {
-            if (target.pixels[y + py][x + px] !== pattern.pixels[py][px]) {
+            const target_pixel = target.pixels[y + py][x + px];
+            const pattern_pixel = pattern.pixels[py][px];
+            if (target_pixel !== pattern_pixel && target_pixel >= 0 && pattern_pixel >= 0) {
                 return false;
             }
         }
@@ -82,6 +84,8 @@ function apply_matches_in_target(part_matches, target) {
         const pattern = part.patterns[random_replace_index];
         for (let py = 0; py < pattern.height; py++) {
             for (let px = 0; px < pattern.width; px++) {
+                const pattern_pixel = pattern.pixels[py][px];
+                if (pattern_pixel === -1) continue; // skip empty pixels
                 target.pixels[y + py][x + px] = pattern.pixels[py][px];
             }
         }

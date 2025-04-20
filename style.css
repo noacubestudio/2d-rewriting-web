@@ -11,23 +11,38 @@ canvas, .grid {
 }
 body {
     margin: 0;
-    font-family: monospace;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     padding: 0;
     background: #555;
+    font-size: 14px;
 }
 
-/* actions */
-.actions {
-    background: #444;
-    position: absolute;
+/* bottom bar */
+.bottom-bar {
+    position: fixed;
     bottom: 0; left: 0;
     width: 100%;
-    padding: 6px;
     z-index: 20;
+}
+.actions, .tool-settings {
+    position: relative;
+    background: #444;
+    width: 100%;
+    padding: 6px;
     border-top: 1px solid #777;
 }
-
-.actions > button {
+.actions.hidden {
+    display: none;
+}
+.tool-settings {
+    background: #333;
+    
+}
+.tool-settings > label {
+    color: #fff;
+    padding: 0 6px;
+}
+.actions > button, .tool-settings > button {
     background: #222;
     color: #fff;
     outline: 1px solid #777;
@@ -36,13 +51,22 @@ body {
     border-radius: 0;
     padding: 6px 12px 6px 6px;
     cursor: pointer;
-    text-align: left;
 }
-.actions > button:hover {
+.actions > button:hover, .tool-settings > button:hover {
     background: #444;
 }
-.actions > button:active {
+.actions > button:active, .tool-settings > button:active {
     background: #555;
+}
+.tool-settings > button {
+    padding: 6px 12px;
+    min-width: 40px;
+}
+.tool-settings > button.active {
+    /* outline: #0ff solid 1px;
+    outline-offset: -1px; */
+    background: #ccc;
+    color: #000;
 }
 
 /* rules */
@@ -104,6 +128,11 @@ body {
 }
 
 /* shared */
+.pattern-wrap, .screen-wrap {
+    background-image: repeating-linear-gradient(45deg,#666,#666 1px,#333 1px,#333 4px
+);
+
+}
 .grid {
     display: grid;
     position: absolute;

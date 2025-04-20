@@ -7,6 +7,7 @@ const UNDO_STACK_LIMIT = 64;
 const rules_container = document.getElementById("rules-container");
 const screen_container = document.getElementById("screen-container");
 const actions_container = document.getElementById("actions-container");
+const tool_settings_container = document.getElementById("tool-settings-container");
 
 const ACTIONS = [
     { hint: "✅ Run Rule"   , keys: ["Enter"                ], action: () => apply_selected_rule() },
@@ -29,6 +30,13 @@ const ACTIONS = [
     { hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
     { hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
     { hint: "♻️ Undo Action", keys: ["z"                    ], action: 'undo' },
+];
+
+const TOOL_SETTINGS = [
+    { group: "Draw Color:", group_index: 1, hint: "1"       , keys: ["1"         ], action: () => tool_color(1) },
+    { group: "Draw Color:", group_index: 2, hint: "2"       , keys: ["2"         ], action: () => tool_color(2) },
+    { group: "Draw Color:", group_index: 3, hint: "3"       , keys: ["3"         ], action: () => tool_color(3) },
+    { group: "Draw Color:", group_index: 4, hint: "Wildcard", keys: ["4"         ], action: () => tool_color(-1) },
 ];
 
 // state to save/load
@@ -61,6 +69,24 @@ document.addEventListener("keydown", (e) => {
         if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
             e.preventDefault();
             do_action(binding.action);
+            break;
+        }
+    }
+
+    for (const binding of TOOL_SETTINGS) {
+        if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
+            e.preventDefault();
+            do_tool_setting(binding.action);
+
+            // highlight the active button to match
+            const matching_buttons = tool_settings_container.querySelectorAll(`button[data-group="${binding.group}"]`);
+            matching_buttons.forEach(b => {
+                if (b.dataset.group_index == binding.group_index) {
+                    b.classList.add("active")
+                } else {
+                    b.classList.remove("active")
+                }
+            });
             break;
         }
     }
@@ -117,6 +143,15 @@ function undo_action() {
     }
 }
 
+function do_tool_setting(action) {
+    action();
+}
+
+function tool_color(value) {
+    ui_state.selected_palette_value = value;
+    console.log("tool_color", value);
+}
+
 function prettify_keys(keys) {
     return keys.map(key => {
         switch (key) {
@@ -130,7 +165,10 @@ function prettify_keys(keys) {
     }).join(" + ");
 }
 
-function render_action_buttons() {
+function render_menu_buttons() {
+
+    actions_container.classList.add("hidden"); // start hidden
+
     ACTIONS.forEach(({hint, action, keys}) => {
         if (!hint) return; // skip
         const btn = document.createElement("button");
@@ -139,11 +177,35 @@ function render_action_buttons() {
         btn.addEventListener("click", () => { do_action(action); });
         actions_container.appendChild(btn);
     });
+
+    TOOL_SETTINGS.forEach(({group, group_index, hint, action, keys}) => {
+        if (!hint) return; // skip
+        const btn = document.createElement("button");
+        btn.className = "tool-button";
+        btn.dataset.group = group;
+        btn.dataset.group_index = group_index;
+        if (group_index === 1) {
+            const group_label = document.createElement("label");
+            group_label.textContent = group;
+            group_label.className = "group-label";
+            tool_settings_container.appendChild(group_label);
+            btn.classList.add("active"); // default active
+        } 
+        btn.textContent = hint;
+        btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
+        btn.addEventListener("click", () => { 
+            do_tool_setting(action); 
+            const matching_buttons = tool_settings_container.querySelectorAll(`button[data-group="${group}"]`);
+            matching_buttons.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active")
+        });
+        tool_settings_container.appendChild(btn);
+    });
 }
 
 function value_to_color(value) { 
-    // TODO: think about how to add wildcard color
-    const PIXEL_PALLETTE = ["#222", "#fff"];
+    if (value === -1) return "transparent"; // wildcard
+    const PIXEL_PALLETTE = ["#222", "#fff", "#6cd9b5", "#036965"];
     return PIXEL_PALLETTE[value] || "magenta";
 }
 
@@ -316,7 +378,6 @@ function render_rule_by_id(rule_id) {
 }
 
 function render_play_pattern() {
-
     const canvas = document.getElementById("screen-canvas");
     const wrapEl = document.querySelector("#screen-container .screen-wrap");
     const pattern = play_pattern;
@@ -347,6 +408,13 @@ function render_selection_change(old_path, new_path) {
     if (new_id) render_rule_by_id(new_id);
     // render deselected or selected play pattern
     if (old_path?.pattern_id === 'play' || new_path?.pattern_id === 'play') render_play_pattern();
+
+    // hide actions if nothing selected
+    if (!new_path) {
+        actions_container.classList.add("hidden");
+    } else {
+        actions_container.classList.remove("hidden");
+    }
 }
 
 function init() {
@@ -388,8 +456,8 @@ function init() {
     initial_play_pattern();
     render_play_pattern();
 
-    // init actions
-    render_action_buttons();
+    // init menu
+    render_menu_buttons();
 }
 init();
 
