@@ -18,11 +18,13 @@ body {
 
 /* actions */
 .actions {
-    background: #55555590;
+    background: #444;
     position: absolute;
     bottom: 0; left: 0;
+    width: 100%;
     padding: 6px;
     z-index: 20;
+    border-top: 1px solid #777;
 }
 
 .actions > button {
@@ -32,8 +34,9 @@ body {
     outline-offset: -0.5px;
     border: none;
     border-radius: 0;
-    padding: 6px 12px;
+    padding: 6px 12px 6px 6px;
     cursor: pointer;
+    text-align: left;
 }
 .actions > button:hover {
     background: #444;

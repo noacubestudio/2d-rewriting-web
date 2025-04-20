@@ -273,6 +273,9 @@ function render_play_pattern() {
             draw_pattern_to_canvas(canvas, pattern);
         });
         wrapEl.appendChild(grid);
+        wrapEl.classList.add("selected");
+    } else{
+        wrapEl.classList.remove("selected");
     }
     console.log("render_play_pattern", pattern.id);
 }

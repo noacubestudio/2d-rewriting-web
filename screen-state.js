@@ -19,8 +19,17 @@ function apply_selected_rule() {
     const { rule } = get_selected_rule_objects(path);
     if (!rule) return;
 
-    const was_successful = apply_rule(rule);
-    if (was_successful) render_play_pattern();
+    let success = true;
+    let application_count = 0;
+    while (success && application_count < 10000) {
+        success = apply_rule(rule);
+        application_count++;
+    }
+    if (application_count === 10000) {
+        console.warn('Rule application limit reached, stopping.');
+    }
+    if (application_count > 0) render_play_pattern();
+    console.log('applied rule', rule.id, 'count', application_count);
 }
 
 function apply_rule(rule) {
@@ -36,13 +45,11 @@ function apply_rule(rule) {
     });
 
     if (part_matches.length < rule.parts.length) {
-        console.log('not all parts matched');
         return false;
     }
 
     // apply the rule to the play_pattern
     apply_matches_in_target(part_matches, target_pattern);
-    console.log('rule applied', rule.id);
     return true;
 }
 
