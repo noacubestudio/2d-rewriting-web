@@ -298,6 +298,28 @@ function draw_in_pattern(pattern, x, y, ui_state) {
                 pattern.pixels[row][col] = ui_state.draw_value;
             }
         }
+        return;
+    }
+
+    if (ui_state.selected_tool === 'line') {
+        let fromX = ui_state.draw_start_x;
+        let fromY = ui_state.draw_start_y;
+        const toX = x;
+        const toY = y;
+
+        const dx = Math.abs(toX - fromX);
+        const dy = Math.abs(toY - fromY);
+        const sx = (fromX < toX) ? 1 : -1;
+        const sy = (fromY < toY) ? 1 : -1;
+        let err = dx - dy;
+
+        while (true) {
+            pattern.pixels[fromY][fromX] = ui_state.draw_value;
+            if (fromX === toX && fromY === toY) break;
+            const err2 = err * 2;
+            if (err2 > -dy) { err -= dy; fromX += sx; }
+            if (err2 < dx)  { err += dx; fromY += sy; }
+        }
     }
 }
 

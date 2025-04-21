@@ -39,6 +39,7 @@ const TOOL_SETTINGS = [
     ]},
     { group: "tools", group_index: 1, hint: "Drawing Tools:", options: [
         { label: "Brush"    , keys: ["b"], action: () => tool_shape('brush') },
+        { label: "Line"     , keys: ["l"], action: () => tool_shape('line') },
         { label: "Rectangle", keys: ["s"], action: () => tool_shape('rect') },
     ]},
 ];
