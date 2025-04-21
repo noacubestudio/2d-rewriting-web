@@ -7,7 +7,7 @@ const tool_settings_container = document.getElementById("tool-settings-container
 
 const ACTIONS = [
     { id: "run"       , hint: "✅ Run Rule"   , keys: ["Enter"                ], action: (s) => apply_selected_rule(s) },
-    { id: "run_all"   , hint: "✅ Run All"    , keys: ["Space"                ], action: (s) => apply_all_rules(s) },
+    { id: "run_all"   , hint: "✅ Run All"    , keys: [" "                    ], action: (s) => apply_all_rules(s) },
     { id: "delete"    , hint: "❌ Delete"     , keys: ["Delete"               ], action: (s) => delete_selection(s) },
     { id: "clear"     , hint: "🧼 Clear"      , keys: ["w"                    ], action: (s) => clear_selection(s) },
     { id: "duplicate" , hint: "📄 Duplicate"  , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
@@ -206,7 +206,8 @@ function prettify_keys(keys) {
             case "ArrowDown": return "↓";
             case "ArrowLeft": return "←";
             case "ArrowRight": return "→";
-            case "Control": return "Ctrl";
+            case "Control": return "CTRL";
+            case " ": return "SPACE";
             default: return key.toUpperCase();
         }
     }).join(" + ");
