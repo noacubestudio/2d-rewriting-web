@@ -20,6 +20,9 @@ function initial_rule() {
             },
         ]
     });
+    // add dot to the second pattern
+    const middle_coord = Math.floor(DEFAULT_PATTERN_SIZE / 2);
+    rules[0].parts[0].patterns[1].pixels[middle_coord][middle_coord] = 1;
 }
 
 function generate_id(prefix = "id") {

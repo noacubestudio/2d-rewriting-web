@@ -7,6 +7,7 @@ const tool_settings_container = document.getElementById("tool-settings-container
 
 const ACTIONS = [
     { id: "run"       , hint: "✅ Run Rule"   , keys: ["Enter"                ], action: (s) => apply_selected_rule(s) },
+    { id: "run_all"   , hint: "✅ Run All"    , keys: ["Space"                ], action: (s) => apply_all_rules(s) },
     { id: "delete"    , hint: "❌ Delete"     , keys: ["Delete"               ], action: (s) => delete_selection(s) },
     { id: "clear"     , hint: "🧼 Clear"      , keys: ["w"                    ], action: (s) => clear_selection(s) },
     { id: "duplicate" , hint: "📄 Duplicate"  , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
@@ -91,17 +92,27 @@ function do_action(action, id) {
         return;
     } 
     
-    if (id === 'run') {
+    if (id === 'run' || id === 'run_all') {
         // this action changes the state of the play pattern, not the selected pattern
         const previous_state = structuredClone(play_pattern);
         const success = action(ui_state.selected_path);
         if (success) {
             const application_count = success.application_count;
-            if (application_count >= RULE_APPLICATION_LIMIT) {
-                console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times, limit reached`);
-            } else {
-                console.log(`Rule applied ${application_count-1} times`);
+            const limit_reached_count = success.limit_reached_count || 0;
+            if (id === 'run') {
+                if (application_count >= RULE_APPLICATION_LIMIT) {
+                    console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times, limit reached`);
+                } else {
+                    console.log(`Rule applied ${application_count-1} times`);
+                }
+            } else if (id === 'run_all') {
+                if (limit_reached_count > 0) {
+                    console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times (for ${limit_reached_count} rules)`);
+                } else {
+                    console.log(`Rules together applied ${application_count-1} times`);
+                }
             }
+
             render_play_pattern();
             // push to undo stack
             undos.play_pattern.push(previous_state);

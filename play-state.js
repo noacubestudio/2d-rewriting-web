@@ -38,6 +38,27 @@ function apply_selected_rule(path) {
     }
 }
 
+function apply_all_rules(path) {
+    const apply_limit = RULE_APPLICATION_LIMIT;
+    let application_count = 0;
+    let limit_reached_count = 0;
+
+    rules.forEach((rule) => {
+        let rule_success = true;
+        let rule_application_count = 0;
+        while (rule_success && rule_application_count < apply_limit) {
+            rule_success = apply_rule(rule);
+            rule_application_count++;
+        }
+        application_count += rule_application_count;
+        if (rule_application_count >= apply_limit) limit_reached_count++;
+    });
+
+    if (application_count > 0) {
+        return { new_path: path, render: 'play', application_count, limit_reached_count };
+    }
+}
+
 function apply_rule(rule) {
     let target_pattern = play_pattern;
     
