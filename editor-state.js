@@ -320,6 +320,24 @@ function draw_in_pattern(pattern, x, y, ui_state) {
             if (err2 > -dy) { err -= dy; fromX += sx; }
             if (err2 < dx)  { err += dx; fromY += sy; }
         }
+        return;
+    }
+
+    if (ui_state.selected_tool === 'fill') {
+        const target_color = pattern.pixels[y][x];
+        if (target_color === ui_state.draw_value) return;
+
+        const stack = [[x, y]];
+        while (stack.length > 0) {
+            const [px, py] = stack.pop();
+            if (px < 0 || px >= pattern.width || py < 0 || py >= pattern.height) continue;
+            if (pattern.pixels[py][px] !== target_color) continue;
+            pattern.pixels[py][px] = ui_state.draw_value;
+            stack.push([px + 1, py]);
+            stack.push([px - 1, py]);
+            stack.push([px, py + 1]);
+            stack.push([px, py - 1]);
+        }
     }
 }
 

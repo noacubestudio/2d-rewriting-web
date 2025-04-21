@@ -26,10 +26,11 @@ const ACTIONS = [
     { id: "shift"     , hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,-1,0) },
     { id: "shift"     , hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: (s) => shift_patterns_in_selection(s,1,0) },
     { id: "undo"      , hint: "♻️ Undo Action", keys: ["z"                    ], action: () => undo_action() },
+    { id: "undo"      , hint: null            , keys: ["u"                    ], action: () => undo_action() },
 ];
 
 const TOOL_SETTINGS = [
-    { group: "colors", hint: "Draw Color:", options: [
+    { group: "colors", hint: "Colors", options: [
         { color: 1, label: "White"   , keys: ["1"], action: () => tool_color(1) },
         { color: 2, label: "Light"   , keys: ["2"], action: () => tool_color(2) },
         { color: 3, label: "Dark"    , keys: ["3"], action: () => tool_color(3) },
@@ -37,10 +38,11 @@ const TOOL_SETTINGS = [
         { color:-1, label: "Wildcard", keys: ["5"], action: () => tool_color(-1) },
 
     ]},
-    { group: "tools", group_index: 1, hint: "Drawing Tools:", options: [
+    { group: "tools", group_index: 1, hint: "Drawing Tools", options: [
         { label: "Brush"    , keys: ["b"], action: () => tool_shape('brush') },
         { label: "Line"     , keys: ["l"], action: () => tool_shape('line') },
         { label: "Rectangle", keys: ["s"], action: () => tool_shape('rect') },
+        { label: "Fill"     , keys: ["f"], action: () => tool_shape('fill') },
     ]},
 ];
 
@@ -306,9 +308,14 @@ function draw_pattern_to_canvas(canvas, pattern) {
     }
 }
 
-function pick_draw_value(value) {
+function pick_draw_value(value_at_pixel) {
+    if (ui_state.selected_tool !== 'brush') {
+        // simply use the new value
+        ui_state.draw_value = ui_state.selected_palette_value;
+        return;
+    }
     // when starting on the color itself, erase instead of draw
-    ui_state.draw_value = (value === ui_state.selected_palette_value) ? 
+    ui_state.draw_value = (value_at_pixel === ui_state.selected_palette_value) ? 
       0 : ui_state.selected_palette_value;
 }
 
@@ -337,6 +344,12 @@ function create_editor_div(pattern, drawing_callback) {
         ui_state.is_drawing = true;
         const cell = e.target;
         if (cell.classList.contains("pixel")) {
+            // add to undo stack
+            const undo_stack = pattern.id === 'play' ? undos.play_pattern : undos.rules;
+            undo_stack.push(structuredClone(pattern.id === 'play' ? play_pattern : rules));
+            if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
+
+            // start drawing
             ui_state.draw_start_x = +cell.dataset.x;
             ui_state.draw_start_y = +cell.dataset.y;
             ui_state.draw_pattern_before = structuredClone(pattern.pixels);
