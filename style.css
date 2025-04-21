@@ -36,12 +36,20 @@ body {
 }
 .tool-settings {
     background: #333;
+    display: flex;
+    gap: 6px;
+    overflow-x: scroll;
 }
-.tool-settings > label {
+.tool-settings > .options-container {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+}
+.tool-settings .options-container label {
     color: #fff;
     padding: 0 6px;
 }
-.actions > button, .tool-settings > button {
+.actions button, .tool-settings button {
     background: #222;
     color: #fff;
     outline: 1px solid #777;
@@ -51,20 +59,23 @@ body {
     padding: 6px 12px 6px 6px;
     cursor: pointer;
 }
-.actions > button:hover, .tool-settings > button:hover {
+.actions button:hover {
     background: #444;
 }
-.actions > button:active, .tool-settings > button:active {
+.actions button:active {
     background: #555;
 }
-.tool-settings > button {
+.tool-settings button {
     padding: 6px 12px;
     min-width: 40px;
 }
-.tool-settings > button.active {
+.tool-settings button:hover {
+    box-shadow: inset 0 0 0 1.5px #888, inset 0 0 0 2.5px #222;
+}
+.tool-settings button.active {
     box-shadow: inset 0 0 0 2px #0ff, inset 0 0 0 3px black;
 }
-.actions > button.hidden {
+.actions button.hidden {
     display: none;
 }
 

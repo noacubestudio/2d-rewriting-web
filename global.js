@@ -13,10 +13,20 @@ const undos = {
     rule_selection: [],
     play_pattern: [],
 };
+
 let id_counter = 0;
+
 const ui_state = {
-  is_drawing: false,
-  selected_palette_value: 1,
-  draw_value: 1,
-  selected_path: null,
+    selected_path: null,
+
+    // drawing options
+    selected_palette_value: 1,
+    selected_tool: 'brush',
+
+    // while drawing
+    is_drawing: false,
+    draw_value: 1,
+    draw_start_x: 0,
+    draw_start_y: 0,
+    draw_pattern_before: null,
 };

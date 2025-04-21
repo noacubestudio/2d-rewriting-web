@@ -22,6 +22,11 @@ function initial_rule() {
     });
 }
 
+function generate_id(prefix = "id") {
+    return `${prefix}_${Date.now().toString(36)}_${(id_counter++).toString(36)}`;
+}
+
+
 // each rule, each part, each pattern gets a new id when cloned
 function deep_clone_with_ids(obj) {
     if (Array.isArray(obj)) {
@@ -202,14 +207,14 @@ function rotate_patterns_in_selection(path) {
     }
 
     if (path.rule_id) {
-        let path_for_rotation = { ...path };
+        let rotate_times = 1;
         if (path.pattern_id) {
-            // if the dimensions of the patterns in a part are not square, then they have to be rotated together.
+            // a non-square pattern selected individually has to be rotated twice so the width and height are correct
             const { pattern } = get_selected_rule_objects(path);
-            if (pattern.width !== pattern.height) path_for_rotation.pattern_id = undefined;
+            if (pattern.width !== pattern.height) rotate_times = 2;
         }
-        const patterns = get_selected_rule_patterns(path_for_rotation);
-        patterns.forEach(pattern => rotate_pattern(pattern, 1));
+        const patterns = get_selected_rule_patterns(path);
+        patterns.forEach(pattern => rotate_pattern(pattern, rotate_times));
         return { new_path: path, render: path.rule_id };
     } 
 }
@@ -273,6 +278,28 @@ function flip_patterns_in_selection(path, h_bool, v_bool) {
 
 
 // Pattern manipulation functions
+
+function draw_in_pattern(pattern, x, y, ui_state) {
+    if (!pattern) return;
+
+    if (ui_state.selected_tool === 'brush') {
+        pattern.pixels[y][x] = ui_state.draw_value;
+        return;
+    }
+
+    if (ui_state.selected_tool === 'rect') {
+        const fromX = Math.min(ui_state.draw_start_x, x);
+        const fromY = Math.min(ui_state.draw_start_y, y);
+        const toX   = Math.max(ui_state.draw_start_x, x);
+        const toY   = Math.max(ui_state.draw_start_y, y);
+
+        for (let row = fromY; row <= toY; row++) {
+            for (let col = fromX; col <= toX; col++) {
+                pattern.pixels[row][col] = ui_state.draw_value;
+            }
+        }
+    }
+}
 
 function rotate_pattern(pattern, times = 1) {
     for (let i = 0; i < times; i++) {

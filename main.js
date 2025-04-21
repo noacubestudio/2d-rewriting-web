@@ -29,11 +29,18 @@ const ACTIONS = [
 ];
 
 const TOOL_SETTINGS = [
-    { group: "Draw Color:", group_index: 1, hint: "White"   , keys: ["1"], action: () => tool_color(1) , color:  1 },
-    { group: "Draw Color:", group_index: 2, hint: "Light"   , keys: ["2"], action: () => tool_color(2) , color:  2 },
-    { group: "Draw Color:", group_index: 3, hint: "Dark"    , keys: ["3"], action: () => tool_color(3) , color:  3 },
-    { group: "Draw Color:", group_index: 4, hint: "Black"   , keys: ["4"], action: () => tool_color(0) , color:  0 },
-    { group: "Draw Color:", group_index: 5, hint: "Wildcard", keys: ["5"], action: () => tool_color(-1), color: -1 },
+    { group: "colors", hint: "Draw Color:", options: [
+        { color: 1, label: "White"   , keys: ["1"], action: () => tool_color(1) },
+        { color: 2, label: "Light"   , keys: ["2"], action: () => tool_color(2) },
+        { color: 3, label: "Dark"    , keys: ["3"], action: () => tool_color(3) },
+        { color: 0, label: "Black"   , keys: ["4"], action: () => tool_color(0) },
+        { color:-1, label: "Wildcard", keys: ["5"], action: () => tool_color(-1) },
+
+    ]},
+    { group: "tools", group_index: 1, hint: "Drawing Tools:", options: [
+        { label: "Brush"    , keys: ["b"], action: () => tool_shape('brush') },
+        { label: "Rectangle", keys: ["s"], action: () => tool_shape('rect') },
+    ]},
 ];
 
 document.addEventListener("keydown", (e) => {
@@ -52,21 +59,24 @@ document.addEventListener("keydown", (e) => {
         }
     }
 
-    for (const binding of TOOL_SETTINGS) {
-        if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
-            e.preventDefault();
-            do_tool_setting(binding.action);
+    for (const bindings_group of TOOL_SETTINGS) {
+        for (let i = 0; i < bindings_group.options.length; i++) {
+            const binding = bindings_group.options[i];
+            if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
+                e.preventDefault();
+                do_tool_setting(binding.action);
 
-            // highlight the active button to match
-            const matching_buttons = tool_settings_container.querySelectorAll(`button[data-group="${binding.group}"]`);
-            matching_buttons.forEach(b => {
-                if (b.dataset.group_index == binding.group_index) {
-                    b.classList.add("active")
-                } else {
-                    b.classList.remove("active")
-                }
-            });
-            break;
+                // highlight the active button to match
+                const btns_in_group = tool_settings_container.querySelectorAll(`button[data-group="${bindings_group.group}"]`);
+                btns_in_group.forEach(b => {
+                    if (b.dataset.option_index == i) {
+                        b.classList.add("active")
+                    } else {
+                        b.classList.remove("active")
+                    }
+                });
+                return;
+            }
         }
     }
 });
@@ -171,6 +181,10 @@ function tool_color(value) {
     ui_state.selected_palette_value = value;
 }
 
+function tool_shape(shape) {
+    ui_state.selected_tool = shape;
+}
+
 function prettify_keys(keys) {
     return keys.map(key => {
         switch (key) {
@@ -198,37 +212,44 @@ function render_menu_buttons() {
         actions_container.appendChild(btn);
     });
 
-    TOOL_SETTINGS.forEach(({group, group_index, hint, action, keys, color}) => {
-        if (!hint) return; // skip
-        const btn = document.createElement("button");
-        btn.className = "tool-button";
-        btn.dataset.group = group;
-        btn.dataset.group_index = group_index;
-        if (group_index === 1) {
-            const group_label = document.createElement("label");
-            group_label.textContent = group;
-            group_label.className = "group-label";
-            tool_settings_container.appendChild(group_label);
-            btn.classList.add("active"); // default active
-        } 
-        if (color) {
-            btn.classList.add("color-button");
-            if (color !== -1) {
-                btn.style.backgroundColor = value_to_color(color);
-            } else {
-                btn.style.backgroundImage = "repeating-linear-gradient(45deg,#666,#666 1px,#333 1px,#333 4px)";
+    TOOL_SETTINGS.forEach(({group, hint: group_label_text, options}) => {
+        // make container for options and add label in front
+        const group_container = document.createElement("div");
+        group_container.className = "options-container";
+        group_container.dataset.group = group;
+        const group_label_el = document.createElement("label");
+        group_label_el.textContent = group_label_text;
+        group_label_el.className = "group-label";
+        group_container.appendChild(group_label_el);
+
+        // add options to container
+        options.forEach(({label, action, keys, color}, i) => {
+            const btn = document.createElement("button");
+            btn.className = "tool-button";
+            btn.dataset.group = group;
+            btn.dataset.option_index = i;
+            if (i === 0) btn.classList.add("active"); // first button is active by default
+            if (color) {
+                btn.classList.add("color-button");
+                if (color !== -1) {
+                    btn.style.backgroundColor = value_to_color(color);
+                } else {
+                    btn.style.backgroundImage = "repeating-linear-gradient(45deg,#666,#666 1px,#333 1px,#333 4px)";
+                }
+                btn.style.color = contrast_to_color(color);
             }
-            btn.style.color = contrast_to_color(color);
-        }
-        btn.textContent = hint;
-        btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
-        btn.addEventListener("click", () => { 
-            do_tool_setting(action); 
-            const matching_buttons = tool_settings_container.querySelectorAll(`button[data-group="${group}"]`);
-            matching_buttons.forEach(b => b.classList.remove("active"));
-            btn.classList.add("active")
+            btn.textContent = label;
+            btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
+            btn.addEventListener("click", () => { 
+                do_tool_setting(action); 
+                const matching_buttons = group_container.querySelectorAll(`button[data-group="${group}"]`);
+                matching_buttons.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active")
+            });
+            group_container.appendChild(btn);
         });
-        tool_settings_container.appendChild(btn);
+
+        tool_settings_container.appendChild(group_container);
     });
 }
 
@@ -290,7 +311,7 @@ function pick_draw_value(value) {
       0 : ui_state.selected_palette_value;
 }
 
-function create_editor_div(pattern, on_change) {
+function create_editor_div(pattern, drawing_callback) {
     const grid = document.createElement("div");
     grid.className = "grid";
     grid.style.gridTemplateColumns = `repeat(${pattern.width}, 1fr)`;
@@ -315,10 +336,13 @@ function create_editor_div(pattern, on_change) {
         ui_state.is_drawing = true;
         const cell = e.target;
         if (cell.classList.contains("pixel")) {
-            const before = pattern.pixels[+cell.dataset.y][+cell.dataset.x];
-            pick_draw_value(before);
-            pattern.pixels[+cell.dataset.y][+cell.dataset.x] = ui_state.draw_value;
-            on_change();
+            ui_state.draw_start_x = +cell.dataset.x;
+            ui_state.draw_start_y = +cell.dataset.y;
+            ui_state.draw_pattern_before = structuredClone(pattern.pixels);
+            const value_before = pattern.pixels[+cell.dataset.y][+cell.dataset.x];
+            pick_draw_value(value_before);
+
+            drawing_callback(+cell.dataset.x, +cell.dataset.y);
         }
     });
 
@@ -328,8 +352,11 @@ function create_editor_div(pattern, on_change) {
         if (!ui_state.is_drawing) return;
         const cell = e.target;
         if (cell.classList.contains("pixel")) {
-            pattern.pixels[+cell.dataset.y][+cell.dataset.x] = ui_state.draw_value;
-            on_change();
+            if (ui_state.selected_tool !== 'brush') {
+                // reset the pattern to the state at the start of drawing
+                pattern.pixels = structuredClone(ui_state.draw_pattern_before);
+            }
+            drawing_callback(+cell.dataset.x, +cell.dataset.y);
         }
     });
 
@@ -373,7 +400,8 @@ function render_rule(rule) {
 
             const is_selected = ui_state.selected_path?.pattern_id === pattern.id;
             if (is_selected) {
-                const grid = create_editor_div(pattern, () => { 
+                const grid = create_editor_div(pattern, (x, y) => { 
+                    draw_in_pattern(pattern, x, y, ui_state);
                     draw_pattern_to_canvas(canvas, pattern);
                 });
                 wrapEl.appendChild(grid);
@@ -449,7 +477,8 @@ function render_play_pattern() {
     const path = ui_state.selected_path;
     wrapEl.querySelectorAll(".grid").forEach(grid => grid.remove());
     if (path?.pattern_id === 'play') {
-        const grid = create_editor_div(pattern, () => { 
+        const grid = create_editor_div(pattern, (x, y) => { 
+            draw_in_pattern(pattern, x, y, ui_state);
             draw_pattern_to_canvas(canvas, pattern);
         });
         wrapEl.appendChild(grid);
@@ -471,6 +500,11 @@ function render_selection_change(old_path, new_path) {
 
     // hide actions if nothing selected
     change_actions_after_selection();
+}
+
+function paths_equal(a, b) {
+    if (!a || !b) return (a === b) // at least one is null
+    return a.rule_id === b.rule_id && a.part_id === b.part_id && a.pattern_id === b.pattern_id;
 }
 
 function init() {
@@ -521,14 +555,3 @@ function init() {
     render_menu_buttons();
 }
 init();
-
-
-// helpers
-function paths_equal(a, b) {
-    if (!a || !b) return (a === b) // at least one is null
-    return a.rule_id === b.rule_id && a.part_id === b.part_id && a.pattern_id === b.pattern_id;
-}
-
-function generate_id(prefix = "id") {
-    return `${prefix}_${Date.now().toString(36)}_${(id_counter++).toString(36)}`;
-}
