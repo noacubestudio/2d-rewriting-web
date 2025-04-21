@@ -1,6 +1,12 @@
+// functions that modify the play_pattern only.
+// the play_pattern is the main area where the rules are applied.
+
+const DEFAULT_PLAY_PATTERN_WIDTH = 8 * TILE_SIZE;
+const DEFAULT_PLAY_PATTERN_HEIGHT = 8 * TILE_SIZE;
+
 function initial_play_pattern() {
     // initial
-    function blank_play_pattern(w = 8 * TILE_SIZE, h = 8 * TILE_SIZE) {
+    function blank_play_pattern(w = DEFAULT_PLAY_PATTERN_WIDTH, h = DEFAULT_PLAY_PATTERN_HEIGHT) {
         return {
             id: 'play',
             width: w,
@@ -12,26 +18,24 @@ function initial_play_pattern() {
     play_pattern = blank_play_pattern();
 }
 
-function apply_selected_rule() {
-    const path = ui_state.selected_path;
+// action that can modify the play_pattern. returns stats (application count, etc.)
+function apply_selected_rule(path) {
     if (!path || path.pattern_id === 'play') return;
 
     const { rule } = get_selected_rule_objects(path);
     if (!rule) return;
 
-    let success = true;
-    let application_count = 0;
-    while (success && application_count < RULE_APPLICATION_LIMIT) {
+    const apply_limit = RULE_APPLICATION_LIMIT;
+    let success = true; let application_count = 0;
+
+    while (success && application_count < apply_limit) {
         success = apply_rule(rule);
         application_count++;
     }
-    if (application_count === RULE_APPLICATION_LIMIT) {
-        console.warn('Rule application limit reached, stopping.');
-    }
-    if (application_count > 0) render_play_pattern();
-    console.log('applied rule', rule.id, 'count', application_count);
 
-    return application_count > 0;
+    if (application_count > 0) {
+        return { new_path: path, render: 'play', application_count };
+    }
 }
 
 function apply_rule(rule) {

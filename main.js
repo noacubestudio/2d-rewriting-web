@@ -1,8 +1,4 @@
-// constants
-const TILE_SIZE = 5;
-const PIXEL_SCALE = 14;
-const RULE_APPLICATION_LIMIT = 10000;
-const UNDO_STACK_LIMIT = 64;
+// rendering, event handling, undo, drawing.
 
 const rules_container = document.getElementById("rules-container");
 const screen_container = document.getElementById("screen-container");
@@ -10,53 +6,35 @@ const actions_container = document.getElementById("actions-container");
 const tool_settings_container = document.getElementById("tool-settings-container");
 
 const ACTIONS = [
-    { id: "run"        , hint: "✅ Run Rule"   , keys: ["Enter"                ], action: () => apply_selected_rule() },
-    { id: "delete"     , hint: "❌ Delete"     , keys: ["Delete"               ], action: () => delete_selection() },
-    { id: null         , hint: "🧼 Clear"      , keys: ["w"                    ], action: () => clear_selection() },
-    { id: "duplicate"  , hint: "📄 Duplicate"  , keys: ["d"                    ], action: () => duplicate_selection() },
-    { id: null         , hint: null            , keys: ["ArrowUp"              ], action: () => reorder_selection(-1) },
-    { id: null         , hint: null            , keys: ["ArrowDown"            ], action: () => reorder_selection(1) },
-    { id: "swap"       , hint: "⬅️ Swap Back"  , keys: ["ArrowLeft"            ], action: () => reorder_selection(-1) },
-    { id: "swap"       , hint: "➡️ Swap Next"  , keys: ["ArrowRight"           ], action: () => reorder_selection(1) },
-    { id: null         , hint: "➖ Height"     , keys: ["ArrowUp"   , "Control"], action: () => resize_patterns_in_selection(0,-1) },
-    { id: null         , hint: "➕ Height"     , keys: ["ArrowDown" , "Control"], action: () => resize_patterns_in_selection(0,1) },
-    { id: null         , hint: "➖ Width"      , keys: ["ArrowLeft" , "Control"], action: () => resize_patterns_in_selection(-1,0) },
-    { id: null         , hint: "➕ Width"      , keys: ["ArrowRight", "Control"], action: () => resize_patterns_in_selection(1,0) },
-    { id: null         , hint: "🔃 Rotate"     , keys: ["r"                    ], action: () => rotate_patterns_in_selection() },
-    { id: null         , hint: "↔️ Flip Hor."  , keys: ["h"                    ], action: () => flip_patterns_in_selection(true, false) },
-    { id: null         , hint: "↕️ Flip Ver."  , keys: ["v"                    ], action: () => flip_patterns_in_selection(false, true) },
-    { id: null         , hint: "⬆️ Shift Up"   , keys: ["ArrowUp"   , "Alt"    ], action: () => shift_patterns_in_selection(0,-1) },
-    { id: null         , hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: () => shift_patterns_in_selection(0,1) },
-    { id: null         , hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: () => shift_patterns_in_selection(-1,0) },
-    { id: null         , hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: () => shift_patterns_in_selection(1,0) },
-    { id: "undo"       , hint: "♻️ Undo Action", keys: ["z"                    ], action: () => undo_action() },
+    { id: "run"       , hint: "✅ Run Rule"   , keys: ["Enter"                ], action: (s) => apply_selected_rule(s) },
+    { id: "delete"    , hint: "❌ Delete"     , keys: ["Delete"               ], action: (s) => delete_selection(s) },
+    { id: "clear"     , hint: "🧼 Clear"      , keys: ["w"                    ], action: (s) => clear_selection(s) },
+    { id: "duplicate" , hint: "📄 Duplicate"  , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
+    { id: "swap"      , hint: null            , keys: ["ArrowUp"              ], action: (s) => reorder_selection(s,-1) },
+    { id: "swap"      , hint: null            , keys: ["ArrowDown"            ], action: (s) => reorder_selection(s,1) },
+    { id: "swap"      , hint: "⬅️ Swap Back"  , keys: ["ArrowLeft"            ], action: (s) => reorder_selection(s,-1) },
+    { id: "swap"      , hint: "➡️ Swap Next"  , keys: ["ArrowRight"           ], action: (s) => reorder_selection(s,1) },
+    { id: "resize"    , hint: "➖ Height"     , keys: ["ArrowUp"   , "Control"], action: (s) => resize_patterns_in_selection(s,0,-1) },
+    { id: "resize"    , hint: "➕ Height"     , keys: ["ArrowDown" , "Control"], action: (s) => resize_patterns_in_selection(s,0,1) },
+    { id: "resize"    , hint: "➖ Width"      , keys: ["ArrowLeft" , "Control"], action: (s) => resize_patterns_in_selection(s,-1,0) },
+    { id: "resize"    , hint: "➕ Width"      , keys: ["ArrowRight", "Control"], action: (s) => resize_patterns_in_selection(s,1,0) },
+    { id: "rotate"    , hint: "🔃 Rotate"     , keys: ["r"                    ], action: (s) => rotate_patterns_in_selection(s) },
+    { id: "flip"      , hint: "↔️ Flip Hor."  , keys: ["h"                    ], action: (s) => flip_patterns_in_selection(s, true, false) },
+    { id: "flip"      , hint: "↕️ Flip Ver."  , keys: ["v"                    ], action: (s) => flip_patterns_in_selection(s, false, true) },
+    { id: "shift"     , hint: "⬆️ Shift Up"   , keys: ["ArrowUp"   , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,-1) },
+    { id: "shift"     , hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,1) },
+    { id: "shift"     , hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,-1,0) },
+    { id: "shift"     , hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: (s) => shift_patterns_in_selection(s,1,0) },
+    { id: "undo"      , hint: "♻️ Undo Action", keys: ["z"                    ], action: () => undo_action() },
 ];
 
 const TOOL_SETTINGS = [
-    { group: "Draw Color:", group_index: 1, hint: "White"   , keys: ["1"], action: () => tool_color(1) , color: 1  },
-    { group: "Draw Color:", group_index: 2, hint: "Light"   , keys: ["2"], action: () => tool_color(2) , color: 2  },
-    { group: "Draw Color:", group_index: 3, hint: "Dark"    , keys: ["3"], action: () => tool_color(3) , color: 3  },
-    { group: "Draw Color:", group_index: 4, hint: "Black"   , keys: ["4"], action: () => tool_color(0) , color: 0  },
+    { group: "Draw Color:", group_index: 1, hint: "White"   , keys: ["1"], action: () => tool_color(1) , color:  1 },
+    { group: "Draw Color:", group_index: 2, hint: "Light"   , keys: ["2"], action: () => tool_color(2) , color:  2 },
+    { group: "Draw Color:", group_index: 3, hint: "Dark"    , keys: ["3"], action: () => tool_color(3) , color:  3 },
+    { group: "Draw Color:", group_index: 4, hint: "Black"   , keys: ["4"], action: () => tool_color(0) , color:  0 },
     { group: "Draw Color:", group_index: 5, hint: "Wildcard", keys: ["5"], action: () => tool_color(-1), color: -1 },
 ];
-
-// state to save/load
-let rules = [];
-let play_pattern = {};
-
-// editor state
-const undos = {
-    rules: [],
-    rule_selection: [],
-    play_pattern: [],
-};
-let id_counter = 0;
-const ui_state = {
-  is_drawing: false,
-  selected_palette_value: 1,
-  draw_value: 1,
-  selected_path: null,
-};
 
 document.addEventListener("keydown", (e) => {
     const pressed = new Set([
@@ -95,14 +73,24 @@ document.addEventListener("keydown", (e) => {
 
 function do_action(action, id) {
     if (id === 'undo') {
-        // this action is not undoable
+        // this action is itself not undoable
         action();
         return;
-    } else if (id === 'run') {
+    } 
+    
+    if (id === 'run') {
         // this action changes the state of the play pattern, not the selected pattern
         const previous_state = structuredClone(play_pattern);
-        const success = action();
+        const success = action(ui_state.selected_path);
         if (success) {
+            const application_count = success.application_count;
+            if (application_count >= RULE_APPLICATION_LIMIT) {
+                console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times, limit reached`);
+            } else {
+                console.log(`Rule applied ${application_count-1} times`);
+            }
+            render_play_pattern();
+            // push to undo stack
             undos.play_pattern.push(previous_state);
             if (undos.play_pattern.length > UNDO_STACK_LIMIT) undos.play_pattern.shift();
         }
@@ -113,16 +101,34 @@ function do_action(action, id) {
     const play_selected = ui_state.selected_path?.pattern_id === 'play';
     const previous_state = structuredClone(play_selected ? play_pattern : rules);
     const previous_selection = structuredClone(ui_state.selected_path);
-    // do action and push to undo stack
-    const success = action();
+
+    // do action
+    const success = action(ui_state.selected_path);
     if (success) {
+        // change selection
+        ui_state.selected_path = success.new_path;
+
+        // render changes 
+        if (success.render === 'play') {
+            render_play_pattern();
+        } else if (success.render === 'rules') {
+            render_all_rules();
+        } else if (success.render) {
+            render_rule_by_id(success.render); // assume rule_id
+        } else {
+            console.warn("Action occured, but no re-render specified");
+        }
+
+        // push to undo stack
         const undo_stack = play_selected ? undos.play_pattern : undos.rules;
         undo_stack.push(previous_state);
         if (!play_selected) undos.rule_selection.push(previous_selection);
-
         if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
         if (undos.rule_selection.length > UNDO_STACK_LIMIT) undos.rule_selection.shift();
-    }
+        return;
+    } 
+
+    console.log(`Action '${id}' failed.`);
 }
 
 function undo_action() {
@@ -132,26 +138,29 @@ function undo_action() {
             play_pattern = undo_stack.pop();
             render_play_pattern();
             console.log("undo play_pattern", play_pattern.id);
+            return;
         }
-    } else {
-        const undo_stack = undos.rules;
-        if (undo_stack.length > 0) {
-            // undo action on rules
-            rules = undo_stack.pop();
-            render_all_rules();
-
-            // undo selection to state before action
-            const old_path = structuredClone(ui_state.selected_path);
-            const new_path = undos.rule_selection.pop();
-            const same = old_path && paths_equal(old_path, new_path);
-            if (!same) {
-                ui_state.selected_path = new_path;
-                render_selection_change(old_path, new_path);
-            }
-
-            console.log("undo rules");
-        }
+        console.log("Nothing to undo");
+        return
     }
+    const undo_stack = undos.rules;
+    if (undo_stack.length > 0) {
+        // undo action on rules
+        rules = undo_stack.pop();
+        render_all_rules();
+
+        // undo selection to state before action
+        const old_path = structuredClone(ui_state.selected_path);
+        const new_path = undos.rule_selection.pop();
+        const same = old_path && paths_equal(old_path, new_path);
+        if (!same) {
+            ui_state.selected_path = new_path;
+            render_selection_change(old_path, new_path);
+        }
+        console.log("undo rules");
+        return;
+    }
+    console.log("Nothing to undo");
 }
 
 function do_tool_setting(action) {
@@ -160,7 +169,6 @@ function do_tool_setting(action) {
 
 function tool_color(value) {
     ui_state.selected_palette_value = value;
-    console.log("tool_color", value);
 }
 
 function prettify_keys(keys) {
@@ -411,7 +419,7 @@ function render_all_rules() {
         const ruleEl = render_rule(rule);
         rules_container.appendChild(ruleEl);
     });
-    console.log("render_all_rules", rules.length);
+    console.log(`Rendered all ${rules.length} rules`);
 }
 
 function render_rule_by_id(rule_id) {
@@ -426,7 +434,7 @@ function render_rule_by_id(rule_id) {
     const newEl = render_rule(rules[index]);
     rules_container.insertBefore(newEl, rules_container.children[index]);
 
-    console.log("render_rule_by_id", rule_id, index);
+    console.log(`Rendered rule with id: ${rule_id}`);
 }
 
 function render_play_pattern() {
@@ -449,7 +457,7 @@ function render_play_pattern() {
     } else{
         wrapEl.classList.remove("selected");
     }
-    console.log("render_play_pattern", pattern.id);
+    console.log("Rendered play pattern");
 }
 
 function render_selection_change(old_path, new_path) {
@@ -523,25 +531,4 @@ function paths_equal(a, b) {
 
 function generate_id(prefix = "id") {
     return `${prefix}_${Date.now().toString(36)}_${(id_counter++).toString(36)}`;
-}
-
-// each rule, each part, each pattern gets a new id when cloned
-function deep_clone_with_ids(obj) {
-    if (Array.isArray(obj)) {
-        return obj.map(deep_clone_with_ids);
-    } else if (obj && typeof obj === 'object') {
-        const copy = {};
-        for (const key in obj) {
-            copy[key] = deep_clone_with_ids(obj[key]);
-        }
-        if ("pixels" in copy) {
-            copy.id = generate_id("pat");
-        } else if ("patterns" in copy) {
-            copy.id = generate_id("part");
-        } else if ("parts" in copy) {
-            copy.id = generate_id("rule");
-        }
-        return copy;
-    }
-    return obj;
 }
