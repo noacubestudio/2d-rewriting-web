@@ -1,12 +1,9 @@
 // functions that modify the play_pattern only.
 // the play_pattern is the main area where the rules are applied.
 
-const DEFAULT_PLAY_PATTERN_WIDTH = 8 * TILE_SIZE;
-const DEFAULT_PLAY_PATTERN_HEIGHT = 8 * TILE_SIZE;
-
 function initial_play_pattern() {
     // initial
-    function blank_play_pattern(w = DEFAULT_PLAY_PATTERN_WIDTH, h = DEFAULT_PLAY_PATTERN_HEIGHT) {
+    function blank_play_pattern(w = 8 * PROJECT.tile_size, h = 8 * PROJECT.tile_size) {
         return {
             id: 'play',
             width: w,
@@ -15,7 +12,7 @@ function initial_play_pattern() {
         };
     }
 
-    play_pattern = blank_play_pattern();
+    PROJECT.play_pattern = blank_play_pattern();
 }
 
 // action that can modify the play_pattern. returns stats (application count, etc.)
@@ -43,7 +40,7 @@ function apply_all_rules(path) {
     let application_count = 0;
     let limit_reached_count = 0;
 
-    rules.forEach((rule) => {
+    PROJECT.rules.forEach((rule) => {
         let rule_success = true;
         let rule_application_count = 0;
         while (rule_success && rule_application_count < apply_limit) {
@@ -60,7 +57,7 @@ function apply_all_rules(path) {
 }
 
 function apply_rule(rule) {
-    let target_pattern = play_pattern;
+    let target_pattern = PROJECT.play_pattern;
     
     // find a match for the initial pattern of every part in the play_pattern
     const part_matches = [];
@@ -81,8 +78,8 @@ function apply_rule(rule) {
 }
 
 function find_pattern_in_target(pattern, target) {
-    for (let y = 0; y <= target.height - pattern.height; y += TILE_SIZE) {
-        for (let x = 0; x <= target.width - pattern.width; x += TILE_SIZE) {
+    for (let y = 0; y <= target.height - pattern.height; y += PROJECT.tile_size) {
+        for (let x = 0; x <= target.width - pattern.width; x += PROJECT.tile_size) {
             if (is_pattern_match(pattern, target, x, y)) {
                 return { x, y };
             }

@@ -1,29 +1,31 @@
-const TILE_SIZE = 5;
-const PIXEL_SCALE = 14;
+// constants
 const RULE_APPLICATION_LIMIT = 10000;
 const UNDO_STACK_LIMIT = 64;
 
-// state to save/load
-let rules = [];
-let play_pattern = {};
+// TODO: manually save and load.
+const PROJECT = {
+    tile_size: 5,
+    rules: [],
+    rule_id_counter: 0,
+    play_pattern: {},
+    selected_path: null,
+}
 
-// editor state
-const undos = {
+// TODO: sync with localstorage.
+const OPTIONS = {
+    selected_palette_value: 1,
+    selected_tool: 'brush',
+    pixel_scale: 14,
+}
+
+// temporary state. 
+// maybe TODO: either allow undo past project loading, or save the undo stack itself?
+const UNDO_STACK = {
     rules: [],
     rule_selection: [],
     play_pattern: [],
 };
-
-let id_counter = 0;
-
-const ui_state = {
-    selected_path: null,
-
-    // drawing options
-    selected_palette_value: 1,
-    selected_tool: 'brush',
-
-    // while drawing
+const UI_STATE = {
     is_drawing: false,
     draw_value: 1,
     draw_start_x: 0,

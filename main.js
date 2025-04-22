@@ -94,8 +94,8 @@ function do_action(action, id) {
     
     if (id === 'run' || id === 'run_all') {
         // this action changes the state of the play pattern, not the selected pattern
-        const previous_state = structuredClone(play_pattern);
-        const success = action(ui_state.selected_path);
+        const previous_state = structuredClone(PROJECT.play_pattern);
+        const success = action(PROJECT.selected_path);
         if (success) {
             const application_count = success.application_count;
             const limit_reached_count = success.limit_reached_count || 0;
@@ -115,22 +115,22 @@ function do_action(action, id) {
 
             render_play_pattern();
             // push to undo stack
-            undos.play_pattern.push(previous_state);
-            if (undos.play_pattern.length > UNDO_STACK_LIMIT) undos.play_pattern.shift();
+            UNDO_STACK.play_pattern.push(previous_state);
+            if (UNDO_STACK.play_pattern.length > UNDO_STACK_LIMIT) UNDO_STACK.play_pattern.shift();
         }
         return;
     }
     
     // save state for undo
-    const play_selected = ui_state.selected_path?.pattern_id === 'play';
-    const previous_state = structuredClone(play_selected ? play_pattern : rules);
-    const previous_selection = structuredClone(ui_state.selected_path);
+    const play_selected = PROJECT.selected_path?.pattern_id === 'play';
+    const previous_state = structuredClone(play_selected ? PROJECT.play_pattern : PROJECT.rules);
+    const previous_selection = structuredClone(PROJECT.selected_path);
 
     // do action
-    const success = action(ui_state.selected_path);
+    const success = action(PROJECT.selected_path);
     if (success) {
         // change selection
-        ui_state.selected_path = success.new_path;
+        PROJECT.selected_path = success.new_path;
 
         // render changes 
         if (success.render === 'play') {
@@ -144,11 +144,11 @@ function do_action(action, id) {
         }
 
         // push to undo stack
-        const undo_stack = play_selected ? undos.play_pattern : undos.rules;
+        const undo_stack = play_selected ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
         undo_stack.push(previous_state);
-        if (!play_selected) undos.rule_selection.push(previous_selection);
+        if (!play_selected) UNDO_STACK.rule_selection.push(previous_selection);
         if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
-        if (undos.rule_selection.length > UNDO_STACK_LIMIT) undos.rule_selection.shift();
+        if (UNDO_STACK.rule_selection.length > UNDO_STACK_LIMIT) UNDO_STACK.rule_selection.shift();
         return;
     } 
 
@@ -156,29 +156,27 @@ function do_action(action, id) {
 }
 
 function undo_action() {
-    if (ui_state.selected_path?.pattern_id === 'play') {
-        const undo_stack = undos.play_pattern;
-        if (undo_stack.length > 0) {
-            play_pattern = undo_stack.pop();
+    if (PROJECT.selected_path?.pattern_id === 'play') {
+        if (UNDO_STACK.play_pattern.length > 0) {
+            PROJECT.play_pattern = UNDO_STACK.play_pattern.pop();
             render_play_pattern();
-            console.log("undo play_pattern", play_pattern.id);
+            console.log("undo play_pattern", PROJECT.play_pattern.id);
             return;
         }
         console.log("Nothing to undo");
         return
     }
-    const undo_stack = undos.rules;
-    if (undo_stack.length > 0) {
+    if (UNDO_STACK.rules.length > 0) {
         // undo action on rules
-        rules = undo_stack.pop();
+        PROJECT.rules = UNDO_STACK.rules.pop();
         render_all_rules();
 
         // undo selection to state before action
-        const old_path = structuredClone(ui_state.selected_path);
-        const new_path = undos.rule_selection.pop();
+        const old_path = structuredClone(PROJECT.selected_path);
+        const new_path = UNDO_STACK.rule_selection.pop();
         const same = old_path && paths_equal(old_path, new_path);
         if (!same) {
-            ui_state.selected_path = new_path;
+            PROJECT.selected_path = new_path;
             render_selection_change(old_path, new_path);
         }
         console.log("undo rules");
@@ -192,11 +190,11 @@ function do_tool_setting(action) {
 }
 
 function tool_color(value) {
-    ui_state.selected_palette_value = value;
+    OPTIONS.selected_palette_value = value;
 }
 
 function tool_shape(shape) {
-    ui_state.selected_tool = shape;
+    OPTIONS.selected_tool = shape;
 }
 
 function prettify_keys(keys) {
@@ -269,7 +267,7 @@ function render_menu_buttons() {
 }
 
 function change_actions_after_selection() {
-    const path = ui_state.selected_path;
+    const path = PROJECT.selected_path;
     if (!path) {
         actions_container.classList.add("hidden");
         return;
@@ -307,7 +305,7 @@ function contrast_to_color(value) {
 }
 
 function draw_pattern_to_canvas(canvas, pattern) {
-    const scale = PIXEL_SCALE;
+    const scale = OPTIONS.pixel_scale;
     canvas.width = pattern.width * scale;
     canvas.height = pattern.height * scale;
     const ctx = canvas.getContext("2d");
@@ -321,24 +319,24 @@ function draw_pattern_to_canvas(canvas, pattern) {
 }
 
 function pick_draw_value(value_at_pixel) {
-    if (ui_state.selected_tool !== 'brush') {
+    if (OPTIONS.selected_tool !== 'brush') {
         // simply use the new value
-        ui_state.draw_value = ui_state.selected_palette_value;
+        UI_STATE.draw_value = OPTIONS.selected_palette_value;
         return;
     }
     // when starting on the color itself, erase instead of draw
-    ui_state.draw_value = (value_at_pixel === ui_state.selected_palette_value) ? 
-      0 : ui_state.selected_palette_value;
+    UI_STATE.draw_value = (value_at_pixel === OPTIONS.selected_palette_value) ? 
+      0 : OPTIONS.selected_palette_value;
 }
 
 function create_editor_div(pattern, drawing_callback) {
     const grid = document.createElement("div");
     grid.className = "grid";
     grid.style.gridTemplateColumns = `repeat(${pattern.width}, 1fr)`;
-    grid.style.width = `${pattern.width * PIXEL_SCALE}px`;
-    grid.style.height = `${pattern.height * PIXEL_SCALE}px`;
-    grid.style.setProperty("--tile-size", TILE_SIZE);
-    grid.style.setProperty("--pixel-scale", PIXEL_SCALE);
+    grid.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
+    grid.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
+    grid.style.setProperty("--tile-size", PROJECT.tile_size);
+    grid.style.setProperty("--pixel-scale", OPTIONS.pixel_scale);
 
     // pixels
     for (let y = 0; y < pattern.height; y++) {
@@ -353,18 +351,18 @@ function create_editor_div(pattern, drawing_callback) {
     }
 
     grid.addEventListener("mousedown", (e) => {
-        ui_state.is_drawing = true;
+        UI_STATE.is_drawing = true;
         const cell = e.target;
         if (cell.classList.contains("pixel")) {
             // add to undo stack
-            const undo_stack = pattern.id === 'play' ? undos.play_pattern : undos.rules;
-            undo_stack.push(structuredClone(pattern.id === 'play' ? play_pattern : rules));
+            const undo_stack = pattern.id === 'play' ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
+            undo_stack.push(structuredClone(pattern.id === 'play' ? PROJECT.play_pattern : PROJECT.rules));
             if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
 
             // start drawing
-            ui_state.draw_start_x = +cell.dataset.x;
-            ui_state.draw_start_y = +cell.dataset.y;
-            ui_state.draw_pattern_before = structuredClone(pattern.pixels);
+            UI_STATE.draw_start_x = +cell.dataset.x;
+            UI_STATE.draw_start_y = +cell.dataset.y;
+            UI_STATE.draw_pattern_before = structuredClone(pattern.pixels);
             const value_before = pattern.pixels[+cell.dataset.y][+cell.dataset.x];
             pick_draw_value(value_before);
 
@@ -372,35 +370,21 @@ function create_editor_div(pattern, drawing_callback) {
         }
     });
 
-    grid.addEventListener("mouseup", () => ui_state.is_drawing = false);
+    grid.addEventListener("mouseup", () => UI_STATE.is_drawing = false);
 
     grid.addEventListener("mouseover", (e) => {
-        if (!ui_state.is_drawing) return;
+        if (!UI_STATE.is_drawing) return;
         const cell = e.target;
         if (cell.classList.contains("pixel")) {
-            if (ui_state.selected_tool !== 'brush') {
+            if (OPTIONS.selected_tool !== 'brush') {
                 // reset the pattern to the state at the start of drawing
-                pattern.pixels = structuredClone(ui_state.draw_pattern_before);
+                pattern.pixels = structuredClone(UI_STATE.draw_pattern_before);
             }
             drawing_callback(+cell.dataset.x, +cell.dataset.y);
         }
     });
 
     return grid;
-}
-
-function build_path(el) {
-    const rule = el.closest(".rule");
-    const part = el.closest(".rule-part");
-    const wrap = el.closest(".pattern-wrap");
-
-    if (!rule && !part && !wrap) return null;
-
-    return {
-        rule_id: rule?.dataset.id,
-        part_id: part?.dataset.id,
-        pattern_id: wrap?.dataset.id
-    };
 }
 
 function render_rule(rule) {
@@ -419,15 +403,15 @@ function render_rule(rule) {
             wrapEl.dataset.id = pattern.id;
 
             const canvas = document.createElement("canvas");
-            canvas.style.width = `${pattern.width * PIXEL_SCALE}px`;
-            canvas.style.height = `${pattern.height * PIXEL_SCALE}px`;
+            canvas.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
+            canvas.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
             draw_pattern_to_canvas(canvas, pattern);
             wrapEl.appendChild(canvas);
 
-            const is_selected = ui_state.selected_path?.pattern_id === pattern.id;
+            const is_selected = PROJECT.selected_path?.pattern_id === pattern.id;
             if (is_selected) {
                 const grid = create_editor_div(pattern, (x, y) => { 
-                    draw_in_pattern(pattern, x, y, ui_state);
+                    draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
                     draw_pattern_to_canvas(canvas, pattern);
                 });
                 wrapEl.appendChild(grid);
@@ -445,7 +429,7 @@ function render_rule(rule) {
         ruleEl.appendChild(partEl);
     });
 
-    const path = ui_state.selected_path;
+    const path = PROJECT.selected_path;
     if (path && path.rule_id === rule.id) select_in_rule(path, ruleEl)
 
     return ruleEl;
@@ -469,15 +453,15 @@ function select_in_rule(path, ruleEl) {
 
 function render_all_rules() {
     rules_container.innerHTML = "";
-    rules.forEach(rule => {
+    PROJECT.rules.forEach(rule => {
         const ruleEl = render_rule(rule);
         rules_container.appendChild(ruleEl);
     });
-    console.log(`Rendered all ${rules.length} rules`);
+    console.log(`Rendered all ${PROJECT.rules.length} rules`);
 }
 
 function render_rule_by_id(rule_id) {
-    const index = rules.findIndex(r => r.id === rule_id);
+    const index = PROJECT.rules.findIndex(r => r.id === rule_id);
     if (index === -1) return;
 
     // Remove existing DOM node
@@ -485,7 +469,7 @@ function render_rule_by_id(rule_id) {
     if (oldEl) oldEl.remove();
 
     // Re-render and insert at the right position
-    const newEl = render_rule(rules[index]);
+    const newEl = render_rule(PROJECT.rules[index]);
     rules_container.insertBefore(newEl, rules_container.children[index]);
 
     console.log(`Rendered rule with id: ${rule_id}`);
@@ -494,17 +478,17 @@ function render_rule_by_id(rule_id) {
 function render_play_pattern() {
     const canvas = document.getElementById("screen-canvas");
     const wrapEl = document.querySelector("#screen-container .screen-wrap");
-    const pattern = play_pattern;
+    const pattern = PROJECT.play_pattern;
 
-    canvas.style.width = `${pattern.width * PIXEL_SCALE}px`;
-    canvas.style.height = `${pattern.height * PIXEL_SCALE}px`;
+    canvas.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
+    canvas.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
     draw_pattern_to_canvas(canvas, pattern);
 
-    const path = ui_state.selected_path;
+    const path = PROJECT.selected_path;
     wrapEl.querySelectorAll(".grid").forEach(grid => grid.remove());
     if (path?.pattern_id === 'play') {
         const grid = create_editor_div(pattern, (x, y) => { 
-            draw_in_pattern(pattern, x, y, ui_state);
+            draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
             draw_pattern_to_canvas(canvas, pattern);
         });
         wrapEl.appendChild(grid);
@@ -536,30 +520,44 @@ function paths_equal(a, b) {
 function init() {
     // click event for selection
     rules_container.addEventListener("click", (e) => {
-        const old_path = structuredClone(ui_state.selected_path);
+        function build_path(el) {
+            const rule = el.closest(".rule");
+            const part = el.closest(".rule-part");
+            const wrap = el.closest(".pattern-wrap");
+        
+            if (!rule && !part && !wrap) return null;
+        
+            return {
+                rule_id: rule?.dataset.id,
+                part_id: part?.dataset.id,
+                pattern_id: wrap?.dataset.id
+            };
+        }
+
+        const old_path = structuredClone(PROJECT.selected_path);
         const new_path = build_path(e.target);
         const same = old_path && paths_equal(old_path, new_path);
-        const should_toggle = same && new_path.length < 3
+        const should_toggle = same && !new_path.pattern_id; // click again on rule or part to deselect
         
-        ui_state.selected_path = should_toggle ? null : new_path;
+        PROJECT.selected_path = should_toggle ? null : new_path;
         if (same && !should_toggle) return;
         render_selection_change(old_path, new_path);
     });
 
     screen_container.addEventListener("click", (e) => {
-        const old_path = structuredClone(ui_state.selected_path);
+        const old_path = structuredClone(PROJECT.selected_path);
         const new_path = { pattern_id: 'play' };
         const same = old_path && paths_equal(old_path, new_path);
 
         if (same) return;
-        ui_state.selected_path = new_path;
+        PROJECT.selected_path = new_path;
         render_selection_change(old_path, new_path);
     });
 
     // just in case
-    window.addEventListener("blur", (e) => ui_state.is_drawing = false);
-    window.addEventListener("pointercancel", (e) => ui_state.is_drawing = false);
-    window.addEventListener("mouseup", (e) => ui_state.is_drawing = false);
+    window.addEventListener("blur", (e) => UI_STATE.is_drawing = false);
+    window.addEventListener("pointercancel", (e) => UI_STATE.is_drawing = false);
+    window.addEventListener("mouseup", (e) => UI_STATE.is_drawing = false);
 
     // init rules
     initial_rule();
