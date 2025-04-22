@@ -25,7 +25,7 @@ function initial_rule() {
 
 function generate_id(prefix = "id") {
     // use the date and a counter (stored in PROJECT.rules) to generate a unique id
-    return `${prefix}_${Date.now().toString(36)}_${(PROJECT.rule_id_counter++).toString(36)}`;
+    return `${prefix}_${Date.now().toString(36)}_${(PROJECT.editor_obj_id_counter++).toString(36)}`;
 }
 
 

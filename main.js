@@ -28,6 +28,8 @@ const ACTIONS = [
     { id: "shift"     , hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: (s) => shift_patterns_in_selection(s,1,0) },
     { id: "undo"      , hint: "♻️ Undo Action", keys: ["z"                    ], action: () => undo_action() },
     { id: "undo"      , hint: null            , keys: ["u"                    ], action: () => undo_action() },
+    { id: "save"      , hint: "💾 Save"       , keys: ["s"                    ], action: () => save_project() },
+    { id: "load"      , hint: "📂 Load"       , keys: ["o"                    ], action: () => use_file_input_and_load() },
 ];
 
 const TOOL_SETTINGS = [
@@ -42,7 +44,7 @@ const TOOL_SETTINGS = [
     { group: "tools", hint: "Drawing Tools", options: [
         { label: "Brush"    , keys: ["b"], action: () => tool_shape('brush') },
         { label: "Line"     , keys: ["l"], action: () => tool_shape('line') },
-        { label: "Rectangle", keys: ["s"], action: () => tool_shape('rect') },
+        { label: "Rectangle", keys: ["n"], action: () => tool_shape('rect') },
         { label: "Fill"     , keys: ["f"], action: () => tool_shape('fill') },
     ]},
     { group: "tools", hint: "Run after change", options: [
@@ -91,11 +93,11 @@ document.addEventListener("keydown", (e) => {
 });
 
 function do_action(action, id) {
-    if (id === 'undo') {
+    if (id === 'undo' || id === 'save' || id === 'load') {
         // this action is itself not undoable
         action();
         return;
-    } 
+    }
     
     if (id === 'run' || id === 'run_all') {
         // this action changes the state of the play pattern, not the selected pattern
@@ -308,6 +310,58 @@ function change_actions_after_selection() {
     const undo_button_text = "♻️ Undo " + (path.pattern_id === 'play' ? "(Main Grid)" : "(Rule Editor)");
     actions_container.querySelector(`.action-undo`).textContent = undo_button_text;
 }
+
+function save_project() {
+    const data = JSON.stringify(PROJECT, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "project.json";
+    a.click();
+    
+    URL.revokeObjectURL(url);
+}
+
+function use_file_input_and_load() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.style.display = "none";
+
+    input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (file) load_project(file);
+    });
+
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+}
+
+function load_project(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const json = JSON.parse(reader.result);
+            Object.assign(PROJECT, json);
+
+            // reset undo stacks
+            UNDO_STACK.rules = [];
+            UNDO_STACK.rule_selection = [];
+            UNDO_STACK.play_pattern = [];
+
+            render_all_rules();
+            render_play_pattern();
+        } catch (err) {
+            alert("Invalid project file.");
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+}
+
 
 function value_to_color(value) { 
     if (value === -1) return "transparent"; // wildcard
@@ -583,6 +637,21 @@ function init() {
     window.addEventListener("blur", (e) => UI_STATE.is_drawing = false);
     window.addEventListener("pointercancel", (e) => UI_STATE.is_drawing = false);
     window.addEventListener("mouseup", (e) => UI_STATE.is_drawing = false);
+
+    // drag files to load
+    window.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+    });
+    window.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === "application/json") {
+            load_project(file);
+        } else {
+            alert("Please drop a valid JSON file.");
+        }
+    });
 
     // init rules
     initial_rule();

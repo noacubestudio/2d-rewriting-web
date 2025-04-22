@@ -6,7 +6,7 @@ const UNDO_STACK_LIMIT = 64;
 const PROJECT = {
     tile_size: 5,
     rules: [],
-    rule_id_counter: 0,
+    editor_obj_id_counter: 0,
     play_pattern: {},
     selected_path: null,
 }
