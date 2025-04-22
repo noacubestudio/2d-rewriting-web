@@ -39,6 +39,7 @@ body {
 }
 .tool-settings {
     border-bottom: #666 solid 1px;
+    flex-shrink: 0;
     display: flex;
     gap: 10px;
     overflow-x: scroll;
