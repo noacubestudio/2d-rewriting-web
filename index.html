@@ -6,12 +6,15 @@
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
-        <div class="rules" id="rules-container"></div>
-        <div class="screen" id="screen-container"></div>
-        <div class="bottom-bar">
-            <div class="actions" id="actions-container"></div>
+        <div class="v-stack" id="main-v">
             <div class="tool-settings" id="tool-settings-container"></div>
+            <div class="h-stack" id="main-h">
+                <div class="rules" id="rules-container"></div>
+                <div class="screen" id="screen-container"></div>
+            </div>
+            <div class="actions" id="actions-container"></div>
         </div>
+
         <script src="global.js"></script>
         <script src="editor-state.js"></script>
         <script src="play-state.js"></script>

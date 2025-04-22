@@ -1,5 +1,6 @@
 * {
     box-sizing: border-box;
+    font-family: 'Segoe UI Variable', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 canvas, .grid {
     display: block;
@@ -11,33 +12,35 @@ canvas, .grid {
 }
 body {
     margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     padding: 0;
-    background: #555;
+    background: #222;
     font-size: 14px;
 }
 
-/* bottom bar */
-.bottom-bar {
-    position: fixed;
-    bottom: 0; left: 0;
-    width: 100%;
-    z-index: 20;
+#main-v {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
 }
+#main-h {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: row;
+    overflow-y: hidden;
+}
+
 .actions, .tool-settings {
-    position: relative;
-    background: #444;
+    background: #222;
     width: 100%;
-    padding: 6px;
-    border-top: 1px solid #777;
+    padding: 8px;
 }
-.actions.hidden {
-    display: none;
+.actions {
+    border-top: #666 solid 1px;
 }
 .tool-settings {
-    background: #333;
+    border-bottom: #666 solid 1px;
     display: flex;
-    gap: 6px;
+    gap: 10px;
     overflow-x: scroll;
 }
 .tool-settings > .options-container {
@@ -47,10 +50,10 @@ body {
 }
 .tool-settings .options-container label {
     color: #fff;
-    padding: 0 6px;
+    padding: 0 7px 0 2px;
 }
 .actions button, .tool-settings button {
-    background: #222;
+    background: #333;
     color: #fff;
     outline: 1px solid #777;
     outline-offset: -0.5px;
@@ -58,6 +61,8 @@ body {
     border-radius: 0;
     padding: 6px 12px 6px 6px;
     cursor: pointer;
+    font-weight: 600;
+    height: 2.4em;
 }
 .actions button:hover {
     background: #444;
@@ -81,29 +86,37 @@ body {
 
 /* rules */
 .rules {
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     padding: 12px;
-    height: 100vh;
     overflow: auto;
-    padding-bottom: 200px;
+    padding-bottom: 50px;
 }
 .rule, .rule-part {
     width: fit-content;
     display: flex;
-    gap: 6px;
-    background: #444;
+    background: #555;
     outline: 1px solid #777;
-    border-radius: 6px;
-    padding: 12px 3px 3px;
+    outline-offset: -0.5px;
+    /* padding: 0px 0px 0px 20px; */
+}
+.rule .rule-label {
+    font-family: monospace;
+    padding: 4px 8px;
+    color: #aaa;
 }
 .rule-part {
     background: #333;
-    border-radius: 2px;
+    /* border-radius: 2px; */
+    gap: 6px;
     align-items: center;
     color: #aaa;
-    font-size: 0.8em;
+    padding: 8px;
+}
+.rule-part label {
+    font-size: 1em;
 }
 .pattern-wrap {
     position: relative;
@@ -111,6 +124,7 @@ body {
 }
 .rule.selected, .rule-part.selected, .pattern-wrap.selected {
     outline: 1px solid #0ff;
+    z-index: 20;
 }
 .pattern-wrap > canvas, .pattern-wrap > .grid {
     image-rendering: pixelated;
@@ -120,9 +134,9 @@ body {
 
 /* play screen */
 .screen {
-    position: absolute;
+    /* background: #2a2a2a; */
     padding: 12px;
-    top: 0; right: 0;
+    /* border-left: #666 solid 1px; */
 }
 .screen-wrap {
     position: relative;

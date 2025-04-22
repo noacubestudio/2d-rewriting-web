@@ -6,34 +6,34 @@ const actions_container = document.getElementById("actions-container");
 const tool_settings_container = document.getElementById("tool-settings-container");
 
 const ACTIONS = [
-    { id: "run"       , hint: "✅ Run Rule"   , keys: ["Enter"                ], action: (s) => apply_selected_rule(s) },
-    { id: "run_all"   , hint: "✅ Run All"    , keys: [" "                    ], action: (s) => apply_all_rules(s) },
-    { id: "delete"    , hint: "❌ Delete"     , keys: ["Delete"               ], action: (s) => delete_selection(s) },
-    { id: "clear"     , hint: "🧼 Clear"      , keys: ["w"                    ], action: (s) => clear_selection(s) },
-    { id: "duplicate" , hint: "📄 Duplicate"  , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
-    { id: "swap"      , hint: null            , keys: ["ArrowUp"              ], action: (s) => reorder_selection(s,-1) },
-    { id: "swap"      , hint: null            , keys: ["ArrowDown"            ], action: (s) => reorder_selection(s,1) },
-    { id: "swap"      , hint: "⬅️ Swap Back"  , keys: ["ArrowLeft"            ], action: (s) => reorder_selection(s,-1) },
-    { id: "swap"      , hint: "➡️ Swap Next"  , keys: ["ArrowRight"           ], action: (s) => reorder_selection(s,1) },
-    { id: "resize"    , hint: "➖ Height"     , keys: ["ArrowUp"   , "Control"], action: (s) => resize_patterns_in_selection(s,0,-1) },
-    { id: "resize"    , hint: "➕ Height"     , keys: ["ArrowDown" , "Control"], action: (s) => resize_patterns_in_selection(s,0,1) },
-    { id: "resize"    , hint: "➖ Width"      , keys: ["ArrowLeft" , "Control"], action: (s) => resize_patterns_in_selection(s,-1,0) },
-    { id: "resize"    , hint: "➕ Width"      , keys: ["ArrowRight", "Control"], action: (s) => resize_patterns_in_selection(s,1,0) },
-    { id: "rotate"    , hint: "🔃 Rotate"     , keys: ["r"                    ], action: (s) => rotate_patterns_in_selection(s) },
-    { id: "flip"      , hint: "↔️ Flip Hor."  , keys: ["h"                    ], action: (s) => flip_patterns_in_selection(s, true, false) },
-    { id: "flip"      , hint: "↕️ Flip Ver."  , keys: ["v"                    ], action: (s) => flip_patterns_in_selection(s, false, true) },
-    { id: "shift"     , hint: "⬆️ Shift Up"   , keys: ["ArrowUp"   , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,-1) },
-    { id: "shift"     , hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,1) },
-    { id: "shift"     , hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,-1,0) },
-    { id: "shift"     , hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: (s) => shift_patterns_in_selection(s,1,0) },
-    { id: "undo"      , hint: "♻️ Undo Action", keys: ["z"                    ], action: () => undo_action() },
-    { id: "undo"      , hint: null            , keys: ["u"                    ], action: () => undo_action() },
-    { id: "save"      , hint: "💾 Save"       , keys: ["s"                    ], action: () => save_project() },
-    { id: "load"      , hint: "📂 Load"       , keys: ["o"                    ], action: () => use_file_input_and_load() },
+    { id: "run"      , hint: "✅ Run Rule"   , keys: ["Enter"                ], action: (s) => apply_selected_rule(s) },
+    { id: "run_all"  , hint: "✅ Run All"    , keys: [" "                    ], action: (s) => apply_all_rules(s) },
+    { id: "load"     , hint: "📂 Load"       , keys: ["o"                    ], action: () => use_file_input_and_load() },
+    { id: "save"     , hint: "💾 Save"       , keys: ["s"                    ], action: () => save_project() },
+    { id: "undo"     , hint: "♻️ Undo Action", keys: ["z"                    ], action: () => undo_action() },
+    { id: "undo"     , hint: null            , keys: ["u"                    ], action: () => undo_action() },
+    { id: "delete"   , hint: "❌ Delete"     , keys: ["Delete"               ], action: (s) => delete_selection(s) },
+    { id: "clear"    , hint: "🧼 Clear"      , keys: ["w"                    ], action: (s) => clear_selection(s) },
+    { id: "duplicate", hint: "📄 Duplicate"  , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
+    { id: "swap"     , hint: null            , keys: ["ArrowUp"              ], action: (s) => reorder_selection(s,-1) },
+    { id: "swap"     , hint: null            , keys: ["ArrowDown"            ], action: (s) => reorder_selection(s,1) },
+    { id: "swap"     , hint: "⬅️ Swap Back"  , keys: ["ArrowLeft"            ], action: (s) => reorder_selection(s,-1) },
+    { id: "swap"     , hint: "➡️ Swap Next"  , keys: ["ArrowRight"           ], action: (s) => reorder_selection(s,1) },
+    { id: "resize"   , hint: "➖ Width"      , keys: ["ArrowLeft" , "Control"], action: (s) => resize_patterns_in_selection(s,-1,0) },
+    { id: "resize"   , hint: "➕ Width"      , keys: ["ArrowRight", "Control"], action: (s) => resize_patterns_in_selection(s,1,0) },
+    { id: "resize"   , hint: "➖ Height"     , keys: ["ArrowUp"   , "Control"], action: (s) => resize_patterns_in_selection(s,0,-1) },
+    { id: "resize"   , hint: "➕ Height"     , keys: ["ArrowDown" , "Control"], action: (s) => resize_patterns_in_selection(s,0,1) },
+    { id: "rotate"   , hint: "🔃 Rotate"     , keys: ["r"                    ], action: (s) => rotate_patterns_in_selection(s) },
+    { id: "flip"     , hint: "↔️ Flip Hor."  , keys: ["h"                    ], action: (s) => flip_patterns_in_selection(s, true, false) },
+    { id: "flip"     , hint: "↕️ Flip Ver."  , keys: ["v"                    ], action: (s) => flip_patterns_in_selection(s, false, true) },
+    { id: "shift"    , hint: "⬅️ Shift Left" , keys: ["ArrowLeft" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,-1,0) },
+    { id: "shift"    , hint: "➡️ Shift Right", keys: ["ArrowRight", "Alt"    ], action: (s) => shift_patterns_in_selection(s,1,0) },
+    { id: "shift"    , hint: "⬆️ Shift Up"   , keys: ["ArrowUp"   , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,-1) },
+    { id: "shift"    , hint: "⬇️ Shift Down" , keys: ["ArrowDown" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,1) },
 ];
 
 const TOOL_SETTINGS = [
-    { group: "colors", hint: "Colors", options: [
+    { group: "colors", hint: null, options: [
         { color: 1, label: "White"   , keys: ["1"], action: () => tool_color(1) },
         { color: 2, label: "Light"   , keys: ["2"], action: () => tool_color(2) },
         { color: 3, label: "Dark"    , keys: ["3"], action: () => tool_color(3) },
@@ -41,11 +41,11 @@ const TOOL_SETTINGS = [
         { color:-1, label: "Wildcard", keys: ["5"], action: () => tool_color(-1) },
 
     ]},
-    { group: "tools", hint: "Drawing Tools", options: [
-        { label: "Brush"    , keys: ["b"], action: () => tool_shape('brush') },
-        { label: "Line"     , keys: ["l"], action: () => tool_shape('line') },
-        { label: "Rectangle", keys: ["n"], action: () => tool_shape('rect') },
-        { label: "Fill"     , keys: ["f"], action: () => tool_shape('fill') },
+    { group: "tools", hint: null, options: [
+        { label: "✏️"    , keys: ["b"], action: () => tool_shape('brush') },
+        { label: "➖"     , keys: ["l"], action: () => tool_shape('line') },
+        { label: "🔳", keys: ["n"], action: () => tool_shape('rect') },
+        { label: "🪣"     , keys: ["f"], action: () => tool_shape('fill') },
     ]},
     { group: "tools", hint: "Run after change", options: [
         { label: "Off", keys: null, action: () => toggle_run_after_change() },
@@ -54,6 +54,8 @@ const TOOL_SETTINGS = [
 ];
 
 document.addEventListener("keydown", (e) => {
+    if (UI_STATE.is_drawing) return; // ignore key events while drawing
+
     const pressed = new Set([
         e.key,
         ...(e.ctrlKey ? ["Control"] : []),
@@ -231,8 +233,6 @@ function prettify_keys(keys) {
 }
 
 function render_menu_buttons() {
-    actions_container.classList.add("hidden"); // start hidden
-
     ACTIONS.forEach(({hint, action, id, keys}) => {
         if (!hint) return; // skip
         const btn = document.createElement("button");
@@ -249,10 +249,12 @@ function render_menu_buttons() {
         const group_container = document.createElement("div");
         group_container.className = "options-container";
         group_container.dataset.group = group;
-        const group_label_el = document.createElement("label");
-        group_label_el.textContent = group_label_text;
-        group_label_el.className = "group-label";
-        group_container.appendChild(group_label_el);
+        if (group_label_text) {
+            const group_label_el = document.createElement("label");
+            group_label_el.textContent = group_label_text;
+            group_label_el.className = "group-label";
+            group_container.appendChild(group_label_el);
+        }
 
         // add options to container
         options.forEach(({label, action, keys, color}, i) => {
@@ -261,7 +263,7 @@ function render_menu_buttons() {
             btn.dataset.group = group;
             btn.dataset.option_index = i;
             if (i === 0) btn.classList.add("active"); // first button is active by default
-            if (color) {
+            if (color !== undefined) {
                 btn.classList.add("color-button");
                 if (color !== -1) {
                     btn.style.backgroundColor = value_to_color(color);
@@ -285,29 +287,25 @@ function render_menu_buttons() {
     });
 }
 
-function change_actions_after_selection() {
+function show_actions_for_selection() {
     const path = PROJECT.selected_path;
-    if (!path) {
-        actions_container.classList.add("hidden");
-        return;
-    } 
-    actions_container.classList.remove("hidden");
 
-    // show/hide actions based on selection
-    const rules_only = ["run", "delete", "duplicate", "swap"];
+    // show all first
+    actions_container.querySelectorAll(".action-button").forEach(b => b.classList.remove("hidden"));
 
-    if (path.pattern_id === 'play') {
-        rules_only.forEach(id => {
+    // go through IDs
+    ACTIONS.forEach(({id}) => {
+        if (path?.pattern_id === 'play' && ['run', 'delete', 'duplicate', 'swap', 'save', 'load'].includes(id)) {
             actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
-        });
-    } else {
-        rules_only.forEach(id => {
-            actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.remove("hidden"));
-        });
-    }
+        } else if (path === null && !['run_all', 'save', 'load', 'undo'].includes(id)) {
+            actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
+        } else if (path && path.pattern_id !== 'play' && ['save', 'load', 'run_all'].includes(id)) {
+            actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
+        }
+    });
 
     // some actions change based on selection
-    const undo_button_text = "♻️ Undo " + (path.pattern_id === 'play' ? "(Main Grid)" : "(Rule Editor)");
+    const undo_button_text = "♻️ Undo " + (path?.pattern_id === 'play' ? "(Main Grid)" : "(Rule Editor)");
     actions_container.querySelector(`.action-undo`).textContent = undo_button_text;
 }
 
@@ -471,6 +469,12 @@ function render_rule(rule) {
     ruleEl.className = "rule";
     ruleEl.dataset.id = rule.id;
 
+    // rule label
+    const rule_label = document.createElement("label");
+    rule_label.textContent = rule.label || "?";
+    rule_label.className = "rule-label";
+    ruleEl.appendChild(rule_label);
+
     rule.parts.forEach(part => {
         const partEl = document.createElement("div");
         partEl.className = "rule-part";
@@ -532,7 +536,8 @@ function select_in_rule(path, ruleEl) {
 
 function render_all_rules() {
     rules_container.innerHTML = "";
-    PROJECT.rules.forEach(rule => {
+    PROJECT.rules.forEach((rule, index) => {
+        rule.label = index + 1;
         const ruleEl = render_rule(rule);
         rules_container.appendChild(ruleEl);
     });
@@ -548,6 +553,7 @@ function render_rule_by_id(rule_id) {
     if (oldEl) oldEl.remove();
 
     // Re-render and insert at the right position
+    PROJECT.rules[index].label = index + 1;
     const newEl = render_rule(PROJECT.rules[index]);
     rules_container.insertBefore(newEl, rules_container.children[index]);
 
@@ -587,8 +593,7 @@ function render_selection_change(old_path, new_path) {
     // render deselected or selected play pattern
     if (old_path?.pattern_id === 'play' || new_path?.pattern_id === 'play') render_play_pattern();
 
-    // hide actions if nothing selected
-    change_actions_after_selection();
+    show_actions_for_selection();
 }
 
 function paths_equal(a, b) {
@@ -625,7 +630,7 @@ function init() {
 
     screen_container.addEventListener("click", (e) => {
         const old_path = structuredClone(PROJECT.selected_path);
-        const new_path = { pattern_id: 'play' };
+        const new_path = (e.target.closest(".screen-wrap")) ? { pattern_id: 'play' } : null;
         const same = old_path && paths_equal(old_path, new_path);
 
         if (same) return;
@@ -671,5 +676,6 @@ function init() {
 
     // init menu
     render_menu_buttons();
+    show_actions_for_selection();
 }
 init();

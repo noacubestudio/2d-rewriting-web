@@ -2,7 +2,7 @@
 const RULE_APPLICATION_LIMIT = 10000;
 const UNDO_STACK_LIMIT = 64;
 
-// TODO: manually save and load.
+// manually saved and loaded
 const PROJECT = {
     tile_size: 5,
     rules: [],
@@ -19,8 +19,7 @@ const OPTIONS = {
     pixel_scale: 14,
 }
 
-// temporary state. 
-// maybe TODO: either allow undo past project loading, or save the undo stack itself?
+// temporary state.
 const UNDO_STACK = {
     rules: [],
     rule_selection: [],
