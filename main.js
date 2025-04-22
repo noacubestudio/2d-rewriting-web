@@ -39,12 +39,16 @@ const TOOL_SETTINGS = [
         { color:-1, label: "Wildcard", keys: ["5"], action: () => tool_color(-1) },
 
     ]},
-    { group: "tools", group_index: 1, hint: "Drawing Tools", options: [
+    { group: "tools", hint: "Drawing Tools", options: [
         { label: "Brush"    , keys: ["b"], action: () => tool_shape('brush') },
         { label: "Line"     , keys: ["l"], action: () => tool_shape('line') },
         { label: "Rectangle", keys: ["s"], action: () => tool_shape('rect') },
         { label: "Fill"     , keys: ["f"], action: () => tool_shape('fill') },
     ]},
+    { group: "tools", hint: "Run after change", options: [
+        { label: "Off", keys: null, action: () => toggle_run_after_change() },
+        { label: "On" , keys: null, action: () => toggle_run_after_change() },
+    ]}
 ];
 
 document.addEventListener("keydown", (e) => {
@@ -66,6 +70,7 @@ document.addEventListener("keydown", (e) => {
     for (const bindings_group of TOOL_SETTINGS) {
         for (let i = 0; i < bindings_group.options.length; i++) {
             const binding = bindings_group.options[i];
+            if (!binding.keys) continue;
             if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
                 e.preventDefault();
                 do_tool_setting(binding.action);
@@ -99,19 +104,21 @@ function do_action(action, id) {
         if (success) {
             const application_count = success.application_count;
             const limit_reached_count = success.limit_reached_count || 0;
+            const change_count = application_count - PROJECT.rules.length; // last run is always unsuccessful
             if (id === 'run') {
                 if (application_count >= RULE_APPLICATION_LIMIT) {
                     console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times, limit reached`);
                 } else {
-                    console.log(`Rule applied ${application_count-1} times`);
+                    console.log(`Rule applied ${change_count} times`);
                 }
             } else if (id === 'run_all') {
                 if (limit_reached_count > 0) {
                     console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times (for ${limit_reached_count} rules)`);
                 } else {
-                    console.log(`Rules together applied ${application_count-1} times`);
+                    console.log(`Rules together applied ${change_count} times`);
                 }
             }
+            if (change_count < 1) return; // nothing changed
 
             render_play_pattern();
             // push to undo stack
@@ -149,6 +156,12 @@ function do_action(action, id) {
         if (!play_selected) UNDO_STACK.rule_selection.push(previous_selection);
         if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
         if (UNDO_STACK.rule_selection.length > UNDO_STACK_LIMIT) UNDO_STACK.rule_selection.shift();
+
+        // run after change
+        if (OPTIONS.run_after_change && play_selected) {
+            console.log("Running after change...");
+            do_action(ACTIONS.find(a => a.id === 'run_all').action, 'run_all');
+        }
         return;
     } 
 
@@ -197,6 +210,10 @@ function tool_shape(shape) {
     OPTIONS.selected_tool = shape;
 }
 
+function toggle_run_after_change() {
+    OPTIONS.run_after_change = !OPTIONS.run_after_change;
+}
+
 function prettify_keys(keys) {
     return keys.map(key => {
         switch (key) {
@@ -218,7 +235,7 @@ function render_menu_buttons() {
         if (!hint) return; // skip
         const btn = document.createElement("button");
         btn.textContent = hint;
-        btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
+        btn.title = (keys) ? "Hotkey: " + prettify_keys(keys) : "No hotkey"; // tooltip
         btn.className = "action-button";
         btn.classList.add(id ? "action-" + id : "action-button");
         btn.addEventListener("click", () => { do_action(action, id); });
@@ -252,7 +269,7 @@ function render_menu_buttons() {
                 btn.style.color = contrast_to_color(color);
             }
             btn.textContent = label;
-            btn.title = "Hotkey: " + prettify_keys(keys); // tooltip
+            btn.title = (keys) ? "Hotkey: " + prettify_keys(keys) : "No hotkey"; // tooltip
             btn.addEventListener("click", () => { 
                 do_tool_setting(action); 
                 const matching_buttons = group_container.querySelectorAll(`button[data-group="${group}"]`);
@@ -370,7 +387,15 @@ function create_editor_div(pattern, drawing_callback) {
         }
     });
 
-    grid.addEventListener("mouseup", () => UI_STATE.is_drawing = false);
+    grid.addEventListener("mouseup", () => {
+        UI_STATE.is_drawing = false;
+
+        // run after change
+        if (OPTIONS.run_after_change && pattern.id === 'play') {
+            console.log("Running after change...");
+            do_action(ACTIONS.find(a => a.id === 'run_all').action, 'run_all');
+        }
+    });
 
     grid.addEventListener("mouseover", (e) => {
         if (!UI_STATE.is_drawing) return;

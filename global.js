@@ -15,6 +15,7 @@ const PROJECT = {
 const OPTIONS = {
     selected_palette_value: 1,
     selected_tool: 'brush',
+    run_after_change: false,
     pixel_scale: 14,
 }
 
