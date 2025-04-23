@@ -77,6 +77,7 @@ const OPTIONS = {
 
 // temporary
 const UNDO_STACK = {
+    last_undo_stack_types: [], // can be used for a single global undo
     rules: [],
     selected: [], // store selection alongside undo stack for rules
     play_pattern: [],

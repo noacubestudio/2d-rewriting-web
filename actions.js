@@ -77,7 +77,9 @@ function do_action(action, id) {
 // when an action/ drawing on a pattern takes place
 function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
     const undo_stack = play_selected ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
+    const undo_stack_type = play_selected ? 'play_pattern' : 'rules';
     undo_stack.push(state_to_push);
+    UNDO_STACK.last_undo_stack_types.push(undo_stack_type);
     if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
 
     if (play_selected) return;
@@ -92,7 +94,8 @@ function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
 // those return what needs to be rendered and the new selection
 
 function undo_action() {
-    if (PROJECT.selected.type === 'play') {
+    const last_stack_type = UNDO_STACK.last_undo_stack_types.pop();
+    if (PROJECT.selected.type === 'play' || (last_stack_type === 'play_pattern' && PROJECT.selected.type === null)) {
         if (UNDO_STACK.play_pattern.length > 0) {
             PROJECT.play_pattern = UNDO_STACK.play_pattern.pop();
             update_play_pattern_el();
@@ -100,7 +103,7 @@ function undo_action() {
             return;
         }
         console.log("Nothing to undo");
-        return
+        return;
     }
 
     if (UNDO_STACK.rules.length > 0) {

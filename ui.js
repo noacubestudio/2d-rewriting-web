@@ -242,7 +242,9 @@ function update_action_buttons() {
     });
 
     // some actions change based on selection
-    const undo_button_text = "♻️ Undo " + (sel_type === 'play' ? "(Main Grid)" : "(Rule Editor)");
+    const last_sel_type = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
+    const show_play = sel_type === 'play' || (sel_type === null && last_sel_type === 'play_pattern');
+    const undo_button_text = "♻️ Undo " + (show_play ? "(Main Grid)" : "(Rule Editor)");
     ACTIONS_CONTAINER_EL.querySelector(`.action-undo`).textContent = undo_button_text;
 }
 
