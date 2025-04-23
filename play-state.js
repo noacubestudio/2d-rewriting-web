@@ -16,10 +16,10 @@ function initial_play_pattern() {
 }
 
 // action that can modify the play_pattern. returns stats (application count, etc.)
-function apply_selected_rule(path) {
-    if (!path || path.pattern_id === 'play') return;
+function apply_selected_rule(sel) {
+    if (sel.type === null || sel.type === 'play') return;
 
-    const { rule } = get_selected_rule_objects(path);
+    const { rule } = get_selected_rule_objects(sel);
     if (!rule) return;
 
     const apply_limit = RULE_APPLICATION_LIMIT;
@@ -31,11 +31,11 @@ function apply_selected_rule(path) {
     }
 
     if (application_count > 0) {
-        return { new_path: path, render: 'play', application_count };
+        return { application_count };
     }
 }
 
-function apply_all_rules(path) {
+function apply_all_rules() {
     const apply_limit = RULE_APPLICATION_LIMIT;
     let application_count = 0;
     let limit_reached_count = 0;
@@ -52,7 +52,7 @@ function apply_all_rules(path) {
     });
 
     if (application_count > 0) {
-        return { new_path: path, render: 'play', application_count, limit_reached_count };
+        return { application_count, limit_reached_count };
     }
 }
 

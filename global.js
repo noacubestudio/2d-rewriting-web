@@ -8,7 +8,10 @@ const PROJECT = {
     rules: [],
     editor_obj_id_counter: 0,
     play_pattern: {},
-    selected_path: null,
+    selected: {
+        paths: [],
+        type: null
+    }
 }
 
 // TODO: sync with localstorage.
@@ -22,7 +25,7 @@ const OPTIONS = {
 // temporary state.
 const UNDO_STACK = {
     rules: [],
-    rule_selection: [],
+    selected: [], // store selection alongside undo stack for rules
     play_pattern: [],
 };
 const UI_STATE = {

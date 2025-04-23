@@ -104,7 +104,7 @@ function do_action(action, id) {
     if (id === 'run' || id === 'run_all') {
         // this action changes the state of the play pattern, not the selected pattern
         const previous_state = structuredClone(PROJECT.play_pattern);
-        const success = action(PROJECT.selected_path);
+        const success = action(PROJECT.selected);
         if (success) {
             const application_count = success.application_count;
             const limit_reached_count = success.limit_reached_count || 0;
@@ -125,41 +125,36 @@ function do_action(action, id) {
             if (change_count < 1) return; // nothing changed
 
             render_play_pattern();
-            // push to undo stack
-            UNDO_STACK.play_pattern.push(previous_state);
-            if (UNDO_STACK.play_pattern.length > UNDO_STACK_LIMIT) UNDO_STACK.play_pattern.shift();
+            push_to_undo_stack(true, previous_state);
         }
         return;
     }
     
     // save state for undo
-    const play_selected = PROJECT.selected_path?.pattern_id === 'play';
+    const play_selected = PROJECT.selected.type === 'play';
     const previous_state = structuredClone(play_selected ? PROJECT.play_pattern : PROJECT.rules);
-    const previous_selection = structuredClone(PROJECT.selected_path);
+    const previous_selection = structuredClone(PROJECT.selected);
 
     // do action
-    const success = action(PROJECT.selected_path);
+    const success = action(PROJECT.selected);
     if (success) {
         // change selection
-        PROJECT.selected_path = success.new_path;
+        PROJECT.selected = success.new_selected;
 
         // render changes 
-        if (success.render === 'play') {
+        if (success.render_type === 'play') {
             render_play_pattern();
-        } else if (success.render === 'rules') {
+        } else if (success.render_type === 'rules') {
             render_all_rules();
-        } else if (success.render) {
-            render_rule_by_id(success.render); // assume rule_id
+        } else if (success.render_type === 'rule') {
+            [...success.render_ids].forEach(render_rule_by_id);
         } else {
             console.warn("Action occured, but no re-render specified");
         }
 
-        // push to undo stack
-        const undo_stack = play_selected ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
-        undo_stack.push(previous_state);
-        if (!play_selected) UNDO_STACK.rule_selection.push(previous_selection);
-        if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
-        if (UNDO_STACK.rule_selection.length > UNDO_STACK_LIMIT) UNDO_STACK.rule_selection.shift();
+        push_to_undo_stack(play_selected, previous_state, previous_selection);
+
+        console.log("Pushed to undo stack", UNDO_STACK.rules.length, UNDO_STACK.selected.length);
 
         // run after change
         if (OPTIONS.run_after_change && play_selected) {
@@ -172,8 +167,19 @@ function do_action(action, id) {
     console.log(`Action '${id}' failed.`);
 }
 
+function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
+    const undo_stack = play_selected ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
+    undo_stack.push(state_to_push);
+    if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
+
+    // also push the selection to the undo stack
+    if (play_selected) return;
+    UNDO_STACK.selected.push(selection_to_push || PROJECT.selected);
+    if (UNDO_STACK.selected.length > UNDO_STACK_LIMIT) UNDO_STACK.selected.shift();
+}
+
 function undo_action() {
-    if (PROJECT.selected_path?.pattern_id === 'play') {
+    if (PROJECT.selected.type === 'play') {
         if (UNDO_STACK.play_pattern.length > 0) {
             PROJECT.play_pattern = UNDO_STACK.play_pattern.pop();
             render_play_pattern();
@@ -183,18 +189,19 @@ function undo_action() {
         console.log("Nothing to undo");
         return
     }
+
     if (UNDO_STACK.rules.length > 0) {
         // undo action on rules
         PROJECT.rules = UNDO_STACK.rules.pop();
         render_all_rules();
 
         // undo selection to state before action
-        const old_path = structuredClone(PROJECT.selected_path);
-        const new_path = UNDO_STACK.rule_selection.pop();
-        const same = old_path && paths_equal(old_path, new_path);
+        const old_sel = structuredClone(PROJECT.selected);
+        const new_sel = UNDO_STACK.selected.pop();
+        const same = selections_equal(old_sel, new_sel);
         if (!same) {
-            PROJECT.selected_path = new_path;
-            render_selection_change(old_path, new_path);
+            PROJECT.selected = new_sel;
+            render_selection_change(old_sel, new_sel);
         }
         console.log("undo rules");
         return;
@@ -288,24 +295,24 @@ function render_menu_buttons() {
 }
 
 function show_actions_for_selection() {
-    const path = PROJECT.selected_path;
+    const sel_type = PROJECT.selected.type;
 
     // show all first
     actions_container.querySelectorAll(".action-button").forEach(b => b.classList.remove("hidden"));
 
     // go through IDs
     ACTIONS.forEach(({id}) => {
-        if (path?.pattern_id === 'play' && ['run', 'delete', 'duplicate', 'swap', 'save', 'load'].includes(id)) {
+        if (sel_type === 'play' && ['run', 'delete', 'duplicate', 'swap', 'save', 'load'].includes(id)) {
             actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
-        } else if (path === null && !['run_all', 'save', 'load', 'undo'].includes(id)) {
+        } else if (sel_type === null && !['run_all', 'save', 'load', 'undo'].includes(id)) {
             actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
-        } else if (path && path.pattern_id !== 'play' && ['save', 'load', 'run_all'].includes(id)) {
+        } else if (sel_type && sel_type !== 'play' && ['save', 'load', 'run_all'].includes(id)) {
             actions_container.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
         }
     });
 
     // some actions change based on selection
-    const undo_button_text = "♻️ Undo " + (path?.pattern_id === 'play' ? "(Main Grid)" : "(Rule Editor)");
+    const undo_button_text = "♻️ Undo " + (sel_type === 'play' ? "(Main Grid)" : "(Rule Editor)");
     actions_container.querySelector(`.action-undo`).textContent = undo_button_text;
 }
 
@@ -423,10 +430,8 @@ function create_editor_div(pattern, drawing_callback) {
         UI_STATE.is_drawing = true;
         const cell = e.target;
         if (cell.classList.contains("pixel")) {
-            // add to undo stack
-            const undo_stack = pattern.id === 'play' ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
-            undo_stack.push(structuredClone(pattern.id === 'play' ? PROJECT.play_pattern : PROJECT.rules));
-            if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
+            const state_to_push = pattern.id === 'play' ? PROJECT.play_pattern : PROJECT.rules;
+            push_to_undo_stack(pattern.id === 'play', structuredClone(state_to_push));
 
             // start drawing
             UI_STATE.draw_start_x = +cell.dataset.x;
@@ -491,7 +496,9 @@ function render_rule(rule) {
             draw_pattern_to_canvas(canvas, pattern);
             wrapEl.appendChild(canvas);
 
-            const is_selected = PROJECT.selected_path?.pattern_id === pattern.id;
+            const is_selected = PROJECT.selected.type === 'pattern' && 
+                PROJECT.selected.paths.find(p => p.pattern_id === pattern.id);
+
             if (is_selected) {
                 const grid = create_editor_div(pattern, (x, y) => { 
                     draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
@@ -512,9 +519,11 @@ function render_rule(rule) {
         ruleEl.appendChild(partEl);
     });
 
-    const path = PROJECT.selected_path;
-    if (path && path.rule_id === rule.id) select_in_rule(path, ruleEl)
-
+    if (PROJECT.selected.type !== 'play') {
+        PROJECT.selected.paths.forEach(path => {
+            if (path.rule_id === rule.id) select_in_rule(path, ruleEl)
+        });
+    }
     return ruleEl;
 }
 
@@ -569,9 +578,8 @@ function render_play_pattern() {
     canvas.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
     draw_pattern_to_canvas(canvas, pattern);
 
-    const path = PROJECT.selected_path;
     wrapEl.querySelectorAll(".grid").forEach(grid => grid.remove());
-    if (path?.pattern_id === 'play') {
+    if (PROJECT.selected.type === 'play') {
         const grid = create_editor_div(pattern, (x, y) => { 
             draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
             draw_pattern_to_canvas(canvas, pattern);
@@ -584,58 +592,93 @@ function render_play_pattern() {
     console.log("Rendered play pattern");
 }
 
-function render_selection_change(old_path, new_path) {
-    const old_id = old_path?.rule_id;
-    const new_id = new_path?.rule_id;
-    // render deselected and selected rule
-    if (old_id && old_id !== new_id) render_rule_by_id(old_id);
-    if (new_id) render_rule_by_id(new_id);
-    // render deselected or selected play pattern
-    if (old_path?.pattern_id === 'play' || new_path?.pattern_id === 'play') render_play_pattern();
-
+function render_selection_change(old_sel, new_sel) {
+    const old_rule_id = old_sel.paths[0]?.rule_id;
+    const new_rule_id = new_sel.paths[0]?.rule_id;
+    
+    if (old_rule_id && new_rule_id && old_rule_id === new_rule_id) {
+        // rule stayed selected, but change happened inside.
+        render_rule_by_id(old_rule_id);
+    } else {
+        // something different is selected.
+        if (old_rule_id) render_rule_by_id(old_rule_id); // deselect old rule
+        if (new_rule_id) render_rule_by_id(new_rule_id); // select new rule
+        if (old_sel.type === 'play' || new_sel.type === 'play') render_play_pattern();
+    }
     show_actions_for_selection();
 }
 
-function paths_equal(a, b) {
-    if (!a || !b) return (a === b) // at least one is null
-    return a.rule_id === b.rule_id && a.part_id === b.part_id && a.pattern_id === b.pattern_id;
+function selections_equal(a, b) {
+    if (a.type !== b.type) return false;
+    if (!a.paths.length && !b.paths.length) return true; // both empty
+    if (a.paths.length !== b.paths.length) return false; // different length
+
+    for (let i = 0; i < a.paths.length; i++) {
+        const a_path = a.paths[i];
+        const b_path = b.paths[i];
+        if (a_path.rule_id !== b_path.rule_id) return false;
+        if (a_path.part_id !== b_path.part_id) return false;
+        if (a_path.pattern_id !== b_path.pattern_id) return false;
+    }
+    return true;
 }
 
 function init() {
     // click event for selection
     rules_container.addEventListener("click", (e) => {
-        function build_path(el) {
+        function get_new_sel(el) {
             const rule = el.closest(".rule");
             const part = el.closest(".rule-part");
-            const wrap = el.closest(".pattern-wrap");
-        
-            if (!rule && !part && !wrap) return null;
-        
-            return {
-                rule_id: rule?.dataset.id,
-                part_id: part?.dataset.id,
-                pattern_id: wrap?.dataset.id
-            };
+            const pattern = el.closest(".pattern-wrap");
+
+            if (pattern) {
+                return {
+                    type: 'pattern',
+                    paths: [{
+                        rule_id: rule?.dataset.id, part_id: part?.dataset.id, pattern_id: pattern?.dataset.id
+                    }]
+                }
+            } else if (part) {
+                return {
+                    type: 'part',
+                    paths: [{
+                        rule_id: rule?.dataset.id, part_id: part?.dataset.id
+                    }]
+                }
+            } else if (rule) {
+                return {
+                    type: 'rule',
+                    paths: [{
+                        rule_id: rule?.dataset.id
+                    }]
+                }
+            }
+            return { type: null, paths: [] };
         }
 
-        const old_path = structuredClone(PROJECT.selected_path);
-        const new_path = build_path(e.target);
-        const same = old_path && paths_equal(old_path, new_path);
-        const should_toggle = same && !new_path.pattern_id; // click again on rule or part to deselect
+        const old_sel = structuredClone(PROJECT.selected);
+        const new_sel = get_new_sel(e.target);
+        const same = selections_equal(old_sel, new_sel);
+
+         // click again on rule or part to deselect
+        const should_toggle = same && new_sel.type !== 'pattern';
         
-        PROJECT.selected_path = should_toggle ? null : new_path;
+        PROJECT.selected = should_toggle ? { type: null, paths: [] } : new_sel;
         if (same && !should_toggle) return;
-        render_selection_change(old_path, new_path);
+        render_selection_change(old_sel, new_sel);
     });
 
     screen_container.addEventListener("click", (e) => {
-        const old_path = structuredClone(PROJECT.selected_path);
-        const new_path = (e.target.closest(".screen-wrap")) ? { pattern_id: 'play' } : null;
-        const same = old_path && paths_equal(old_path, new_path);
+        const old_sel = structuredClone(PROJECT.selected);
+        const new_sel = { 
+            type: (e.target.closest(".screen-wrap") ? 'play' : null), 
+            paths: [] 
+        }; 
+        const same = selections_equal(old_sel, new_sel);
 
         if (same) return;
-        PROJECT.selected_path = new_path;
-        render_selection_change(old_path, new_path);
+        PROJECT.selected = new_sel;
+        render_selection_change(old_sel, new_sel);
     });
 
     // just in case
