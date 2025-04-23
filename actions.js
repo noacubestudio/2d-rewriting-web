@@ -3,7 +3,7 @@
 // if an action is successful, the state is pushed to the undo stack and render updates are triggered.
 
 function do_action(action, id) {
-    if (id === 'undo' || id === 'save' || id === 'load') {
+    if (NOT_UNDOABLE_ACTIONS.includes(id)) {
         // this action is itself not undoable
         action();
         return;
@@ -140,6 +140,15 @@ function tool_shape(shape) {
 
 function toggle_run_after_change() {
     OPTIONS.run_after_change = !OPTIONS.run_after_change;
+}
+
+function zoom_pixel_grids(change) {
+    OPTIONS.pixel_scale += change;
+    OPTIONS.pixel_scale = Math.max(2, Math.min(OPTIONS.pixel_scale, 100));
+
+    // render everything again
+    update_all_rule_els();
+    update_play_pattern_el();
 }
 
 function save_project() {

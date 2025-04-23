@@ -232,11 +232,11 @@ function update_action_buttons() {
 
     // go through IDs
     ACTIONS.forEach(({id}) => {
-        if (sel_type === 'play' && ['run', 'delete', 'duplicate', 'swap', 'save', 'load'].includes(id)) {
+        if (sel_type === 'play' && ACTIONS_HIDDEN_WHEN_PLAY_SELECTED.includes(id)) {
             ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
-        } else if (sel_type === null && !['run_all', 'save', 'load', 'undo'].includes(id)) {
+        } else if (sel_type === null && !ACTIONS_SHOWN_WHEN_NOTHING_SELECTED.includes(id)) {
             ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
-        } else if (sel_type && sel_type !== 'play' && ['save', 'load', 'run_all'].includes(id)) {
+        } else if (sel_type && sel_type !== 'play' && ACTIONS_HIDDEN_WHEN_RULE_SELECTED.includes(id)) {
             ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
         }
     });

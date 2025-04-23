@@ -9,10 +9,14 @@ const UNDO_STACK_LIMIT = 64;
 const ACTIONS = [
     { id: "run"      , hint: "✅ Run Selected", keys: ["Enter"                ], action: (s) => apply_rules(s) },
     { id: "run_all"  , hint: "✅ Run All"     , keys: [" "                    ], action: () => apply_rules() },
-    { id: "load"     , hint: "📂 Load"        , keys: ["o"                    ], action: () => use_file_input_and_load() },
-    { id: "save"     , hint: "💾 Save"        , keys: ["s"                    ], action: () => save_project() },
     { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: () => undo_action() },
     { id: "undo"     , hint: null             , keys: ["u"                    ], action: () => undo_action() },
+    // no selection only
+    { id: "load"     , hint: "📂 Load"        , keys: ["o"                    ], action: () => use_file_input_and_load() },
+    { id: "save"     , hint: "💾 Save"        , keys: ["s"                    ], action: () => save_project() },
+    { id: "scale"    , hint: "➖ Px Scale"    , keys: null                     , action: () => zoom_pixel_grids(-1) },
+    { id: "scale"    , hint: "➕ Px Scale"    , keys: null                     , action: () => zoom_pixel_grids(1) },
+    // selection only
     { id: "delete"   , hint: "❌ Delete"      , keys: ["Delete"               ], action: (s) => delete_selection(s) },
     { id: "clear"    , hint: "🧼 Clear"       , keys: ["w"                    ], action: (s) => clear_selection(s) },
     { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
@@ -32,6 +36,11 @@ const ACTIONS = [
     { id: "shift"    , hint: "⬆️ Shift Up"    , keys: ["ArrowUp"   , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,-1) },
     { id: "shift"    , hint: "⬇️ Shift Down"  , keys: ["ArrowDown" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,1) },
 ];
+const ACTIONS_SHOWN_WHEN_NOTHING_SELECTED = ['run_all', 'save', 'load', 'undo', 'scale'];
+const ACTIONS_HIDDEN_WHEN_RULE_SELECTED   = ['run_all', 'save', 'load', 'scale'];
+const ACTIONS_HIDDEN_WHEN_PLAY_SELECTED   = ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'scale'];
+const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'scale', 'undo'];
+
 const TOOL_SETTINGS = [
     { group: "colors", hint: null, options: [
         { color: 1, label: "White"   , keys: ["1"], action: () => tool_color(1) },
