@@ -154,8 +154,6 @@ function do_action(action, id) {
 
         push_to_undo_stack(play_selected, previous_state, previous_selection);
 
-        console.log("Pushed to undo stack", UNDO_STACK.rules.length, UNDO_STACK.selected.length);
-
         // run after change
         if (OPTIONS.run_after_change && play_selected) {
             console.log("Running after change...");
@@ -593,18 +591,18 @@ function render_play_pattern() {
 }
 
 function render_selection_change(old_sel, new_sel) {
-    const old_rule_id = old_sel.paths[0]?.rule_id;
-    const new_rule_id = new_sel.paths[0]?.rule_id;
+    // re-render play board
+    if (old_sel.type === 'play' || new_sel.type === 'play') render_play_pattern();
+
+    // collect rule IDs to re-render
+    const old_rule_ids = new Set(old_sel.paths.map(p => p.rule_id).filter(Boolean));
+    const new_rule_ids = new Set(new_sel.paths.map(p => p.rule_id).filter(Boolean));
+    const all_rule_ids = new Set([...old_rule_ids, ...new_rule_ids]);
     
-    if (old_rule_id && new_rule_id && old_rule_id === new_rule_id) {
-        // rule stayed selected, but change happened inside.
-        render_rule_by_id(old_rule_id);
-    } else {
-        // something different is selected.
-        if (old_rule_id) render_rule_by_id(old_rule_id); // deselect old rule
-        if (new_rule_id) render_rule_by_id(new_rule_id); // select new rule
-        if (old_sel.type === 'play' || new_sel.type === 'play') render_play_pattern();
+    for (const rule_id of all_rule_ids) {
+        render_rule_by_id(rule_id);
     }
+
     show_actions_for_selection();
 }
 
@@ -623,6 +621,22 @@ function selections_equal(a, b) {
     return true;
 }
 
+function toggle_in_selection(base_sel, new_sel) {
+    // go through base_sel and modify and return it.
+    // assume that new_sel is a single path.
+    const index = base_sel.paths.findIndex(p => {
+        return p.rule_id === new_sel.paths[0].rule_id && 
+               p.part_id === new_sel.paths[0].part_id && 
+               p.pattern_id === new_sel.paths[0].pattern_id;
+    });
+    if (index >= 0) {
+        base_sel.paths.splice(index, 1); // deselect
+    } else {
+        base_sel.paths.push(new_sel.paths[0]); // add
+    }
+    return base_sel;
+}
+
 function init() {
     // click event for selection
     rules_container.addEventListener("click", (e) => {
@@ -630,41 +644,40 @@ function init() {
             const rule = el.closest(".rule");
             const part = el.closest(".rule-part");
             const pattern = el.closest(".pattern-wrap");
-
             if (pattern) {
-                return {
-                    type: 'pattern',
-                    paths: [{
-                        rule_id: rule?.dataset.id, part_id: part?.dataset.id, pattern_id: pattern?.dataset.id
-                    }]
-                }
+                return { type: 'pattern', paths: [{
+                    rule_id: rule?.dataset.id, part_id: part?.dataset.id, pattern_id: pattern?.dataset.id
+                }]}
             } else if (part) {
-                return {
-                    type: 'part',
-                    paths: [{
-                        rule_id: rule?.dataset.id, part_id: part?.dataset.id
-                    }]
-                }
+                return { type: 'part', paths: [{
+                    rule_id: rule?.dataset.id, part_id: part?.dataset.id
+                }]}
             } else if (rule) {
-                return {
-                    type: 'rule',
-                    paths: [{
-                        rule_id: rule?.dataset.id
-                    }]
-                }
+                return { type: 'rule', paths: [{
+                    rule_id: rule?.dataset.id
+                }]}
             }
             return { type: null, paths: [] };
         }
 
         const old_sel = structuredClone(PROJECT.selected);
         const new_sel = get_new_sel(e.target);
-        const same = selections_equal(old_sel, new_sel);
-
-         // click again on rule or part to deselect
-        const should_toggle = same && new_sel.type !== 'pattern';
         
-        PROJECT.selected = should_toggle ? { type: null, paths: [] } : new_sel;
-        if (same && !should_toggle) return;
+        const ctrl_held = e.ctrlKey || e.metaKey; // MacOS
+        if (ctrl_held) {
+            if (PROJECT.selected.type !== new_sel.type) {
+                // if the type is different, restart selection
+                PROJECT.selected = new_sel;
+            } else {
+                // add or remove from selection
+                PROJECT.selected = toggle_in_selection(PROJECT.selected, new_sel);
+            }
+        } else {
+            const same = selections_equal(old_sel, new_sel);
+            const should_toggle = same && new_sel.type !== 'pattern'; // click again on rule or part to deselect
+            PROJECT.selected = should_toggle ? { type: null, paths: [] } : new_sel;
+            if (same && !should_toggle) return;
+        }
         render_selection_change(old_sel, new_sel);
     });
 
