@@ -15,44 +15,39 @@ function initial_play_pattern() {
     PROJECT.play_pattern = blank_play_pattern();
 }
 
-// action that can modify the play_pattern. returns stats (application count, etc.)
-function apply_selected_rule(sel) {
-    if (sel.type === null || sel.type === 'play') return;
-
-    const { rule } = get_selected_rule_objects(sel);
-    if (!rule) return;
-
-    const apply_limit = RULE_APPLICATION_LIMIT;
-    let success = true; let application_count = 0;
-
-    while (success && application_count < apply_limit) {
-        success = apply_rule(rule);
-        application_count++;
-    }
-
-    if (application_count > 0) {
-        return { application_count };
-    }
-}
-
-function apply_all_rules() {
+function apply_rules(sel) {
     const apply_limit = RULE_APPLICATION_LIMIT;
     let application_count = 0;
     let limit_reached_count = 0;
+    let rules_checked_count = 0;
+
+    // if there are certain rules selected, only apply those rules.
+    let selected_rule_ids = null;
+    if (sel) {
+        if (sel.type === null || sel.type === 'play') return;
+        const object_groups = get_selected_rule_objects(sel);
+        selected_rule_ids = new Set(object_groups.map((obj) => obj.rule.id));
+        if (selected_rule_ids.size === 0) return;
+    }
 
     PROJECT.rules.forEach((rule) => {
+        if (selected_rule_ids && !selected_rule_ids.has(rule.id)) return;
+
         let rule_success = true;
         let rule_application_count = 0;
         while (rule_success && rule_application_count < apply_limit) {
             rule_success = apply_rule(rule);
             rule_application_count++;
         }
+
         application_count += rule_application_count;
+        rules_checked_count++;
         if (rule_application_count >= apply_limit) limit_reached_count++;
     });
 
+    // application was successful if at least one rule was applied.
     if (application_count > 0) {
-        return { application_count, limit_reached_count };
+        return { rules_checked_count, application_count, limit_reached_count };
     }
 }
 
