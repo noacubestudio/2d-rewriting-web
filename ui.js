@@ -33,6 +33,7 @@ document.addEventListener("keydown", (e) => {
     ]);
 
     for (const binding of ACTIONS) {
+        if (!binding.keys) continue;
         if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
             e.preventDefault();
             do_action(binding.action, binding.id);
@@ -170,7 +171,7 @@ function render_menu_buttons() {
         ACTIONS_CONTAINER_EL.appendChild(btn);
     });
 
-    TOOL_SETTINGS.forEach(({group, hint: group_label_text, options}) => {
+    TOOL_SETTINGS.forEach(({group, hint: group_label_text, option_key, options}) => {
         // make container for options and add label in front
         const group_container = document.createElement("div");
         group_container.className = "options-container";
@@ -183,25 +184,25 @@ function render_menu_buttons() {
         }
 
         // add options to container
-        options.forEach(({label, action, keys, color}, i) => {
+        options.forEach(({label, keys, value}, i) => {
             const btn = document.createElement("button");
             btn.className = "tool-button";
             btn.dataset.group = group;
             btn.dataset.option_index = i;
-            if (i === 0) btn.classList.add("active"); // first button is active by default
-            if (color !== undefined) {
+            if (value === OPTIONS[option_key]) btn.classList.add("active"); // initially active button
+            if (group === "colors") {
                 btn.classList.add("color-button");
-                if (color !== -1) {
-                    btn.style.backgroundColor = value_to_color(color);
+                if (value !== -1) {
+                    btn.style.backgroundColor = value_to_color(value);
                 } else {
                     btn.style.backgroundImage = "repeating-linear-gradient(45deg,#666,#666 1px,#333 1px,#333 4px)";
                 }
-                btn.style.color = contrast_to_color(color);
+                btn.style.color = contrast_to_color(value);
             }
             btn.textContent = label;
             btn.title = (keys) ? "Hotkey: " + prettify_hotkey_names(keys) : "No hotkey"; // tooltip
             btn.addEventListener("click", () => { 
-                do_tool_setting(action); 
+                do_tool_setting(option_key, value); 
                 const matching_buttons = group_container.querySelectorAll(`button[data-group="${group}"]`);
                 matching_buttons.forEach(b => b.classList.remove("active"));
                 btn.classList.add("active")

@@ -126,29 +126,23 @@ function undo_action() {
     console.log("Nothing to undo");
 }
 
-function do_tool_setting(action) {
-    action();
-}
-
-function tool_color(value) {
-    OPTIONS.selected_palette_value = value;
-}
-
-function tool_shape(shape) {
-    OPTIONS.selected_tool = shape;
-}
-
-function toggle_run_after_change() {
-    OPTIONS.run_after_change = !OPTIONS.run_after_change;
+function do_tool_setting(option_key, value) {
+    OPTIONS[option_key] = value;
+    save_options();
 }
 
 function zoom_pixel_grids(change) {
     OPTIONS.pixel_scale += change;
     OPTIONS.pixel_scale = Math.max(2, Math.min(OPTIONS.pixel_scale, 100));
+    save_options();
 
     // render everything again
     update_all_rule_els();
     update_play_pattern_el();
+}
+
+function save_options() {
+    localStorage.setItem('options', JSON.stringify(OPTIONS));
 }
 
 function save_project() {

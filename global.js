@@ -42,23 +42,23 @@ const ACTIONS_HIDDEN_WHEN_PLAY_SELECTED   = ['run', 'delete', 'duplicate', 'swap
 const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'scale', 'undo'];
 
 const TOOL_SETTINGS = [
-    { group: "colors", hint: null, options: [
-        { color: 1, label: "White"   , keys: ["1"], action: () => tool_color(1) },
-        { color: 2, label: "Light"   , keys: ["2"], action: () => tool_color(2) },
-        { color: 3, label: "Dark"    , keys: ["3"], action: () => tool_color(3) },
-        { color: 0, label: "Black"   , keys: ["4"], action: () => tool_color(0) },
-        { color:-1, label: "Wildcard", keys: ["5"], action: () => tool_color(-1) },
+    { group: "colors", hint: null, option_key: 'selected_palette_value', options: [
+        { value: 1, label: "White"   , keys: ["1"] },
+        { value: 2, label: "Light"   , keys: ["2"] },
+        { value: 3, label: "Dark"    , keys: ["3"] },
+        { value: 0, label: "Black"   , keys: ["4"] },
+        { value:-1, label: "Wildcard", keys: ["5"] },
 
     ]},
-    { group: "tools", hint: null, options: [
-        { label: "✏️", keys: ["b"], action: () => tool_shape('brush') },
-        { label: "➖", keys: ["l"], action: () => tool_shape('line') },
-        { label: "🔳", keys: ["n"], action: () => tool_shape('rect') },
-        { label: "🪣", keys: ["f"], action: () => tool_shape('fill') },
+    { group: "tools", hint: "Tool", option_key: 'selected_tool', options: [
+        { value: 'brush', label: "✏️", keys: ["b"] },
+        { value: 'line' , label: "➖", keys: ["l"] },
+        { value: 'rect' , label: "🔳", keys: ["n"] },
+        { value: 'fill' , label: "🪣", keys: ["f"] },
     ]},
-    { group: "tools", hint: "Run after change", options: [
-        { label: "Off", keys: null, action: () => toggle_run_after_change() },
-        { label: "On" , keys: null, action: () => toggle_run_after_change() },
+    { group: "tools", hint: "Run after change", option_key: 'run_after_change', options: [
+        { value: false, label: "Off", keys: null },
+        { value: true , label: "On" , keys: null },
     ]}
 ];
 
@@ -76,13 +76,26 @@ const PROJECT = {
     }
 }
 
-// TODO: sync with localstorage.
 const OPTIONS = {
     selected_palette_value: 1,
     selected_tool: 'brush',
     run_after_change: false,
     pixel_scale: 14,
 }
+// load from localStorage if available
+function load_options() {
+    const saved_options = localStorage.getItem('options');
+    if (saved_options) {
+        try {
+            const parsed_options = JSON.parse(saved_options);
+            Object.assign(OPTIONS, parsed_options);
+            console.log("Loaded options from localStorage:", OPTIONS);
+        } catch (err) {
+            console.error("Invalid options in localStorage:", err);
+        }
+    }
+}
+load_options();
 
 // temporary
 const UNDO_STACK = {
