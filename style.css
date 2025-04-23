@@ -1,6 +1,11 @@
-* {
+html, body, div, label, button, canvas {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
     box-sizing: border-box;
-    font-family: 'Segoe UI Variable', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 canvas, .grid {
     display: block;
@@ -9,18 +14,20 @@ canvas, .grid {
     -moz-user-drag: none;
     user-select: none;
     pointer-events: auto; /* no drag */
+    touch-action: none;
 }
 body {
     margin: 0;
     padding: 0;
     background: #222;
     font-size: 14px;
+    font-family: 'Segoe UI Variable', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 #main-v {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: calc(var(--vh-100, 100vh));
 }
 #main-h {
     flex-grow: 1;
@@ -64,6 +71,7 @@ body {
     cursor: pointer;
     font-weight: 600;
     height: 2.4em;
+    line-height: 0;
 }
 .actions button:hover {
     background: #444;
@@ -163,12 +171,6 @@ body {
     top: 0; left: 0;
     z-index: 10;
 }
-.pixel {
-    width: calc(var(--pixel-scale) * 1px);
-    height: calc(var(--pixel-scale) * 1px);
-    border: 0.5px solid #99999955;
-    background: transparent;
-}
 .grid::after {
     /* Helps show the tile borders for multi-tile grids */
     content: "";
@@ -182,6 +184,12 @@ body {
         linear-gradient(to bottom, #999999 1px, transparent 1px);
     background-size: calc(var(--tile-size) * var(--pixel-scale) * 1px) 
                      calc(var(--tile-size) * var(--pixel-scale) * 1px);
+}
+.pixel {
+    width: calc(var(--pixel-scale) * 1px);
+    height: calc(var(--pixel-scale) * 1px);
+    border: 0.5px solid #99999955;
+    background: transparent;
 }
 .pixel:hover {
     outline: 1px solid #fa0;

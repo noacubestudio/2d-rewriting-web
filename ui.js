@@ -16,6 +16,8 @@ update_play_pattern_el();
 render_menu_buttons();
 update_action_buttons();
 
+set_true_vh();
+
 
 // permanent window/ main DOM/ document event listeners
 
@@ -114,7 +116,7 @@ SCREEN_CONTAINER_EL.addEventListener("click", (e) => {
 // stop gestures when leaving
 window.addEventListener("blur", (e) => UI_STATE.is_drawing = false);
 window.addEventListener("pointercancel", (e) => UI_STATE.is_drawing = false);
-window.addEventListener("mouseup", (e) => UI_STATE.is_drawing = false);
+window.addEventListener("pointerup", (e) => UI_STATE.is_drawing = false);
 
 // drag files on window to load
 window.addEventListener("dragover", (e) => {
@@ -130,6 +132,13 @@ window.addEventListener("drop", (e) => {
         alert("Please drop a valid JSON file.");
     }
 });
+
+window.addEventListener("resize", set_true_vh);
+function set_true_vh() {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    document.documentElement.style.setProperty('--vh-100', `${vh * 100}px`);
+}
 
 
 // rendering functions
@@ -313,7 +322,9 @@ function create_pattern_editor_el(pattern, canvas) {
         }
     }
 
-    grid.addEventListener("mousedown", (e) => {
+    grid.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+
         UI_STATE.is_drawing = true;
         const cell = e.target;
         if (cell.classList.contains("pixel")) {
@@ -324,26 +335,23 @@ function create_pattern_editor_el(pattern, canvas) {
         }
     });
 
-    grid.addEventListener("mouseover", (e) => {
+    grid.addEventListener("pointermove", (e) => {
         if (!UI_STATE.is_drawing) return;
-        const cell = e.target;
+        const cell = document.elementFromPoint(e.clientX, e.clientY);
         if (cell.classList.contains("pixel")) {
             const x = +cell.dataset.x;
             const y = +cell.dataset.y;
+            if (x === UI_STATE.draw_x && y === UI_STATE.draw_y) return; // no change
             continue_drawing(pattern, x, y);
             draw_pattern_to_canvas(pattern, canvas);
         }
     });
 
-    grid.addEventListener("mouseup", () => {
+    grid.addEventListener("pointerup", () => {
         if (!UI_STATE.is_drawing) return;
         UI_STATE.is_drawing = false;
-
-        // run after change
-        if (OPTIONS.run_after_change && pattern.id === 'play') {
-            console.log("Running after change...");
-            do_action(ACTIONS.find(a => a.id === 'run_all').action, 'run_all');
-        }
+        
+        finish_drawing(pattern);
     });
 
     return grid;

@@ -200,9 +200,11 @@ function start_drawing(pattern, x, y) {
     // set at start of drawing
     UI_STATE.draw_start_x = x;
     UI_STATE.draw_start_y = y;
+    UI_STATE.draw_x = x;
+    UI_STATE.draw_y = y;
     UI_STATE.draw_pattern_before = structuredClone(pattern.pixels);
-    const value_before = pattern.pixels[x][y];
-    pick_draw_value(value_before);
+
+    pick_draw_value(pattern.pixels[y][x]); // based on previous value
 
     draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
 }
@@ -212,7 +214,18 @@ function continue_drawing(pattern, x, y) {
         // reset the pattern to the state at the start of drawing
         pattern.pixels = structuredClone(UI_STATE.draw_pattern_before);
     }
+    UI_STATE.draw_x = x;
+    UI_STATE.draw_y = y;
+
     draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
+}
+
+function finish_drawing(pattern) {
+    // run after change
+    if (OPTIONS.run_after_change && pattern.id === 'play') {
+        console.log("Running after change...");
+        do_action(ACTIONS.find(a => a.id === 'run_all').action, 'run_all');
+    }
 }
 
 function pick_draw_value(value_at_pixel) {

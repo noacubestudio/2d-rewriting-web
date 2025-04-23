@@ -84,7 +84,9 @@ const UNDO_STACK = {
 const UI_STATE = {
     is_drawing: false,
     draw_value: 1,
-    draw_start_x: 0,
-    draw_start_y: 0,
+    draw_start_x: null,
+    draw_start_y: null,
+    draw_x: null,
+    draw_y: null,
     draw_pattern_before: null,
 };
