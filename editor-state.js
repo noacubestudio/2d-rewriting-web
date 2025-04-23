@@ -1,14 +1,6 @@
-// basic rules structure
-function blank_pattern(w = PROJECT.tile_size, h = PROJECT.tile_size) {
-    return {
-        id: generate_id('pat'),
-        width: w, 
-        height: h,
-        pixels: Array.from({ length: h }, () => Array(w).fill(0))
-    };
-}
+// init rules
 
-function initial_rule() {
+function set_default_rules() {
     PROJECT.rules.push({
         id: generate_id('rule'),
         parts: [
@@ -23,13 +15,21 @@ function initial_rule() {
     PROJECT.rules[0].parts[0].patterns[1].pixels[middle_coord][middle_coord] = 1;
 }
 
+function blank_pattern(w = PROJECT.tile_size, h = PROJECT.tile_size) {
+    return {
+        id: generate_id('pat'),
+        width: w, 
+        height: h,
+        pixels: Array.from({ length: h }, () => Array(w).fill(0))
+    };
+}
+
 function generate_id(prefix = "id") {
     // use the date and a counter (stored in PROJECT.rules) to generate a unique id
     return `${prefix}_${Date.now().toString(36)}_${(PROJECT.editor_obj_id_counter++).toString(36)}`;
 }
 
-
-// each rule, each part, each pattern gets a new id when cloned
+// refresh ids when a rule is duplicated
 function deep_clone_with_ids(obj) {
     if (Array.isArray(obj)) {
         return obj.map(deep_clone_with_ids);
@@ -50,7 +50,7 @@ function deep_clone_with_ids(obj) {
     return obj;
 }
 
-// based on the selection ids, get the objects in the rules state.
+// selection ids -> rule, part, pattern objects
 function get_selected_rule_objects(sel) {
     const object_groups = [];
     sel.paths.forEach(path => {
@@ -64,7 +64,7 @@ function get_selected_rule_objects(sel) {
     return object_groups;
 }
 
-// get all patterns in the selection paths
+// selection ids -> selected pattern objects
 function get_selected_rule_patterns(sel) {
     const found_patterns = new Set();
     const object_groups = get_selected_rule_objects(sel);
@@ -81,9 +81,9 @@ function get_selected_rule_patterns(sel) {
     return [...found_patterns];
 }
 
-// actions
+
 // functions that modify the state of the rules and play_pattern, usually based on the selected objects.
-// they return:
+// called from actions.js, they return:
 // - new_selected (like PROJECT.selected) to be set in the state
 // - render_ids ([] of rule_id) or render_type ('play' | 'rules') to be rendered.
 

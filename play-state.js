@@ -1,19 +1,18 @@
-// functions that modify the play_pattern only.
-// the play_pattern is the main area where the rules are applied.
+// initial state of the play_pattern (main grid, where the rules are applied)
 
-function initial_play_pattern() {
-    // initial
-    function blank_play_pattern(w = 8 * PROJECT.tile_size, h = 8 * PROJECT.tile_size) {
-        return {
-            id: 'play',
-            width: w,
-            height: h,
-            pixels: Array.from({ length: h }, () => Array(w).fill(0))
-        };
-    }
+function set_default_play_pattern(w = 8, h = 8) {
+    const cells_width = w * PROJECT.tile_size;
+    const cells_height = h * PROJECT.tile_size;
 
-    PROJECT.play_pattern = blank_play_pattern();
+    PROJECT.play_pattern = {
+        id: 'play',
+        width: cells_width,
+        height: cells_height,
+        pixels: Array.from({ length: cells_height }, () => Array(cells_width).fill(0))
+    };
 }
+
+// functions that modify the play_pattern only.
 
 function apply_rules(sel) {
     const apply_limit = RULE_APPLICATION_LIMIT;

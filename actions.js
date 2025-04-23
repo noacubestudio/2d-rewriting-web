@@ -1,0 +1,251 @@
+// actions are functions that modify the state of the project, activated with button click or keypress.
+// the state before the action is saved for undo.
+// if an action is successful, the state is pushed to the undo stack and render updates are triggered.
+
+function do_action(action, id) {
+    if (id === 'undo' || id === 'save' || id === 'load') {
+        // this action is itself not undoable
+        action();
+        return;
+    }
+    
+    if (id === 'run' || id === 'run_all') {
+        // this action changes the state of the play pattern, not the selected pattern
+        const previous_state = structuredClone(PROJECT.play_pattern);
+        const success = action(PROJECT.selected);
+        if (success) {
+            const application_count = success.application_count;
+            const limit_reached_count = success.limit_reached_count || 0;
+            const rules_checked_count = success.rules_checked_count;
+            const change_count = application_count - rules_checked_count; // last run is always unsuccessful
+            if (rules_checked_count === 1) {
+                if (application_count >= RULE_APPLICATION_LIMIT) {
+                    console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times, limit reached`);
+                } else {
+                    console.log(`Rule applied ${change_count} times`);
+                }
+            } else {
+                if (limit_reached_count > 0) {
+                    console.warn(`${rules_checked_count} rules checked ${RULE_APPLICATION_LIMIT} times (for ${limit_reached_count} rules)`);
+                } else {
+                    console.log(`${rules_checked_count} rules applied ${change_count} times`);
+                }
+            }
+            if (change_count < 1) return; // nothing changed
+
+            update_play_pattern_el();
+            push_to_undo_stack(true, previous_state);
+        }
+        return;
+    }
+    
+    // save state for undo
+    const play_selected = PROJECT.selected.type === 'play';
+    const previous_state = structuredClone(play_selected ? PROJECT.play_pattern : PROJECT.rules);
+    const previous_selection = structuredClone(PROJECT.selected);
+
+    // do action
+    const success = action(PROJECT.selected);
+    if (success) {
+        // change selection
+        PROJECT.selected = success.new_selected;
+
+        // render changes 
+        if (success.render_type === 'play') {
+            update_play_pattern_el();
+        } else if (success.render_type === 'rules') {
+            update_all_rule_els();
+        } else if (success.render_type === 'rule') {
+            [...success.render_ids].forEach(update_rule_el_by_id);
+        } else {
+            console.warn("Action occured, but no re-render specified");
+        }
+
+        push_to_undo_stack(play_selected, previous_state, previous_selection);
+
+        // run after change
+        if (OPTIONS.run_after_change && play_selected) {
+            console.log("Running after change...");
+            do_action(ACTIONS.find(a => a.id === 'run_all').action, 'run_all');
+        }
+        return;
+    } 
+
+    console.log(`Action '${id}' failed.`);
+}
+
+// when an action/ drawing on a pattern takes place
+function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
+    const undo_stack = play_selected ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
+    undo_stack.push(state_to_push);
+    if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
+
+    if (play_selected) return;
+    // also push the selection to the undo stack
+    UNDO_STACK.selected.push(selection_to_push || PROJECT.selected);
+    if (UNDO_STACK.selected.length > UNDO_STACK_LIMIT) UNDO_STACK.selected.shift();
+}
+
+
+// general action functions
+// most are in editor-state.js and play-state.js and use the active selection for context
+// those return what needs to be rendered and the new selection
+
+function undo_action() {
+    if (PROJECT.selected.type === 'play') {
+        if (UNDO_STACK.play_pattern.length > 0) {
+            PROJECT.play_pattern = UNDO_STACK.play_pattern.pop();
+            update_play_pattern_el();
+            console.log("undo play_pattern", PROJECT.play_pattern.id);
+            return;
+        }
+        console.log("Nothing to undo");
+        return
+    }
+
+    if (UNDO_STACK.rules.length > 0) {
+        // undo action on rules
+        PROJECT.rules = UNDO_STACK.rules.pop();
+        update_all_rule_els();
+
+        // undo selection to state before action
+        const old_sel = structuredClone(PROJECT.selected);
+        const new_sel = UNDO_STACK.selected.pop();
+        const same = selections_equal(old_sel, new_sel);
+        if (!same) {
+            PROJECT.selected = new_sel;
+            update_selected_els(old_sel, new_sel);
+            update_action_buttons();
+        }
+        console.log("undo rules");
+        return;
+    }
+    console.log("Nothing to undo");
+}
+
+function do_tool_setting(action) {
+    action();
+}
+
+function tool_color(value) {
+    OPTIONS.selected_palette_value = value;
+}
+
+function tool_shape(shape) {
+    OPTIONS.selected_tool = shape;
+}
+
+function toggle_run_after_change() {
+    OPTIONS.run_after_change = !OPTIONS.run_after_change;
+}
+
+function save_project() {
+    const data = JSON.stringify(PROJECT, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "project.json";
+    a.click();
+    
+    URL.revokeObjectURL(url);
+}
+
+function use_file_input_and_load() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.style.display = "none";
+
+    input.addEventListener("change", () => {
+        const file = input.files[0];
+        if (file) load_project(file);
+    });
+
+    document.body.appendChild(input);
+    input.click();
+    document.body.removeChild(input);
+}
+
+function load_project(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const json = JSON.parse(reader.result);
+            Object.assign(PROJECT, json);
+
+            // reset undo stacks
+            UNDO_STACK.rules = [];
+            UNDO_STACK.rule_selection = [];
+            UNDO_STACK.play_pattern = [];
+
+            update_all_rule_els();
+            update_play_pattern_el();
+        } catch (err) {
+            alert("Invalid project file.");
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+}
+
+
+// drawing
+
+function start_drawing(pattern, x, y) {
+    const state_to_push = pattern.id === 'play' ? PROJECT.play_pattern : PROJECT.rules;
+    push_to_undo_stack(pattern.id === 'play', structuredClone(state_to_push));
+
+    // set at start of drawing
+    UI_STATE.draw_start_x = x;
+    UI_STATE.draw_start_y = y;
+    UI_STATE.draw_pattern_before = structuredClone(pattern.pixels);
+    const value_before = pattern.pixels[x][y];
+    pick_draw_value(value_before);
+
+    draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
+}
+
+function continue_drawing(pattern, x, y) {
+    if (OPTIONS.selected_tool !== 'brush') {
+        // reset the pattern to the state at the start of drawing
+        pattern.pixels = structuredClone(UI_STATE.draw_pattern_before);
+    }
+    draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
+}
+
+function pick_draw_value(value_at_pixel) {
+    if (OPTIONS.selected_tool !== 'brush') {
+        // simply use the new value
+        UI_STATE.draw_value = OPTIONS.selected_palette_value;
+        return;
+    }
+    // when starting on the color itself, erase instead of draw
+    UI_STATE.draw_value = (value_at_pixel === OPTIONS.selected_palette_value) ? 
+      0 : OPTIONS.selected_palette_value;
+}
+
+function value_to_color(value) { 
+    if (value === -1) return "transparent"; // wildcard
+    return PIXEL_PALLETTE[value] || "magenta";
+}
+
+function contrast_to_color(value) {
+    if (value === -1) return "white";
+    return TEXT_ON_PIXEL_PALLETTE[value] || "purple";
+}
+
+function draw_pattern_to_canvas(pattern, canvas) {
+    const scale = OPTIONS.pixel_scale;
+    canvas.width = pattern.width * scale;
+    canvas.height = pattern.height * scale;
+    const ctx = canvas.getContext("2d");
+    for (let y = 0; y < pattern.height; y++) {
+        for (let x = 0; x < pattern.width; x++) {
+            const value = (pattern.pixels[y] !== undefined) ? pattern.pixels[y][x] : null;
+            ctx.fillStyle = value_to_color(value);
+            ctx.fillRect(x * scale, y * scale, scale, scale);
+        }
+    }
+}
