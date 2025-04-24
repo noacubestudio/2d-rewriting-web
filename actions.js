@@ -181,10 +181,7 @@ function load_project(file) {
             const json = JSON.parse(reader.result);
             Object.assign(PROJECT, json);
 
-            // reset undo stacks
-            UNDO_STACK.rules = [];
-            UNDO_STACK.rule_selection = [];
-            UNDO_STACK.play_pattern = [];
+            clear_undo_stack();
 
             update_all_rule_els();
             update_play_pattern_el();
@@ -195,6 +192,20 @@ function load_project(file) {
     };
     reader.readAsText(file);
 }
+
+const NEW_PROJECT_DIALOG_EL = document.getElementById("new-project-dialog");
+function new_project() {
+    // open the dialog to create a new project
+    NEW_PROJECT_DIALOG_EL.showModal();
+}
+NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
+    if (NEW_PROJECT_DIALOG_EL.returnValue === "OK") {
+        const new_tile_size = document.getElementById("tile-size-input").value;
+        clear_project_obj(new_tile_size);
+        clear_undo_stack();
+        init_starter_project();
+    }
+});
 
 
 // drawing

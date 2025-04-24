@@ -7,15 +7,19 @@ const TOOL_SETTINGS_CONTAINER_EL = document.getElementById("tool-settings-contai
 
 // init
 
-set_default_rules();
-update_all_rule_els();
+function init_starter_project() {
+    // add defaults
+    set_default_rules();
+    set_default_play_pattern();
+    // render
+    update_all_rule_els();
+    update_play_pattern_el();
+}
 
-set_default_play_pattern();
-update_play_pattern_el();
+init_starter_project();
 
 render_menu_buttons();
 update_action_buttons();
-
 set_true_vh();
 
 

@@ -1,4 +1,4 @@
-html, body, div, label, button, canvas {
+html, body, div, label, button, canvas, p, input {
     margin: 0;
     padding: 0;
     border: 0;
@@ -61,23 +61,26 @@ body {
     color: #fff;
     padding: 0 0.6em 0 2px;
 }
-.actions button, .tool-settings button {
+button, input[type="submit"] {
     background: #333;
     color: #fff;
     outline: 1px solid #777;
     outline-offset: -0.5px;
     border: none;
     border-radius: 0;
-    padding: 6px 12px 6px 6px;
+    padding: 6px 12px;
     cursor: pointer;
     font-weight: 600;
     height: 2.4em;
     line-height: 0;
 }
-.actions button:hover {
+.actions button {
+    padding: 6px 12px 6px 6px;
+}
+button:hover, input[type="submit"]:hover {
     background: #444;
 }
-.actions button:active {
+button:active, input[type="submit"]:active {
     background: #555;
 }
 .tool-settings button {
@@ -196,4 +199,40 @@ body {
     outline: 1px solid #fa0;
     outline-offset: -0.5px;
     z-index: 20;
+}
+
+/* dialog */
+dialog {
+    background: #333;
+    color: #fff;
+    border: 1px solid #666;
+    border-radius: 0;
+    box-shadow: 0 0 10px #000;
+}
+dialog::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+dialog form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+dialog form > label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+dialog input[type="number"] {
+    background: #222;
+    color: #fff;
+    outline: 1px solid #777;
+    outline-offset: -0.5px;
+    border: none;
+    border-radius: 0;
+    padding: 6px 12px;
+}
+dialog .button-row {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
 }

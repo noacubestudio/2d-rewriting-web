@@ -14,6 +14,7 @@ const ACTIONS = [
     // no selection only
     { id: "load"     , hint: "📂 Load"        , keys: ["o"                    ], action: () => use_file_input_and_load() },
     { id: "save"     , hint: "💾 Save"        , keys: ["s"                    ], action: () => save_project() },
+    { id: "new"      , hint: "❇️ New"         , keys: ["m"                    ], action: () => new_project() },
     { id: "scale"    , hint: "➖ Px Scale"    , keys: null                     , action: () => zoom_pixel_grids(-1) },
     { id: "scale"    , hint: "➕ Px Scale"    , keys: null                     , action: () => zoom_pixel_grids(1) },
     // selection only
@@ -36,10 +37,10 @@ const ACTIONS = [
     { id: "shift"    , hint: "⬆️ Shift Up"    , keys: ["ArrowUp"   , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,-1) },
     { id: "shift"    , hint: "⬇️ Shift Down"  , keys: ["ArrowDown" , "Alt"    ], action: (s) => shift_patterns_in_selection(s,0,1) },
 ];
-const ACTIONS_SHOWN_WHEN_NOTHING_SELECTED = ['run_all', 'save', 'load', 'undo', 'scale'];
-const ACTIONS_HIDDEN_WHEN_RULE_SELECTED   = ['run_all', 'save', 'load', 'scale'];
-const ACTIONS_HIDDEN_WHEN_PLAY_SELECTED   = ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'scale'];
-const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'scale', 'undo'];
+const ACTIONS_SHOWN_WHEN_NOTHING_SELECTED = ['run_all', 'save', 'load', 'new', 'undo', 'scale'];
+const ACTIONS_HIDDEN_WHEN_RULE_SELECTED   = ['run_all', 'save', 'load', 'new', 'scale'];
+const ACTIONS_HIDDEN_WHEN_PLAY_SELECTED   = ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'new', 'scale'];
+const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'undo'];
 
 const TOOL_SETTINGS = [
     { group: "colors", hint: null, option_key: 'selected_palette_value', options: [
@@ -66,15 +67,26 @@ const TOOL_SETTINGS = [
 
 // manually saved and loaded
 const PROJECT = {
-    tile_size: 5,
-    rules: [],
-    editor_obj_id_counter: 0,
-    play_pattern: {},
+    tile_size: undefined,
+    rules: undefined,
+    editor_obj_id_counter: undefined,
+    play_pattern: undefined,
     selected: {
-        paths: [],
-        type: null
+        paths: undefined,
+        type: undefined
     }
 }
+function clear_project_obj(tile_size = 5) {
+    PROJECT.tile_size = tile_size;
+    PROJECT.rules = [];
+    PROJECT.editor_obj_id_counter = 0;
+    PROJECT.play_pattern = {};
+    PROJECT.selected = {
+        paths: [],
+        type: null
+    };
+}
+clear_project_obj();
 
 const OPTIONS = {
     selected_palette_value: 1,
@@ -104,6 +116,12 @@ const UNDO_STACK = {
     selected: [], // store selection alongside undo stack for rules
     play_pattern: [],
 };
+function clear_undo_stack() {
+    UNDO_STACK.last_undo_stack_types = [];
+    UNDO_STACK.rules = [];
+    UNDO_STACK.selected = [];
+    UNDO_STACK.play_pattern = [];
+}
 const UI_STATE = {
     is_drawing: false,
     draw_value: 1,
