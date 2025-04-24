@@ -200,8 +200,17 @@ function new_project() {
 }
 NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
     if (NEW_PROJECT_DIALOG_EL.returnValue === "OK") {
-        const new_tile_size = document.getElementById("tile-size-input").value;
-        clear_project_obj(new_tile_size);
+        // use the new tile size from the input
+        const new_tile_size = +document.getElementById("tile-size-input").value;
+        if (isNaN(new_tile_size) || new_tile_size < 1) {
+            alert("Invalid tile size. Please enter a positive number.");
+            return;
+        }
+        OPTIONS.default_tile_size = new_tile_size;
+        save_options();
+
+        // reset the project
+        clear_project_obj();
         clear_undo_stack();
         init_starter_project();
     }

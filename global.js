@@ -65,36 +65,15 @@ const TOOL_SETTINGS = [
 
 // mutable state
 
-// manually saved and loaded
-const PROJECT = {
-    tile_size: undefined,
-    rules: undefined,
-    editor_obj_id_counter: undefined,
-    play_pattern: undefined,
-    selected: {
-        paths: undefined,
-        type: undefined
-    }
-}
-function clear_project_obj(tile_size = 5) {
-    PROJECT.tile_size = tile_size;
-    PROJECT.rules = [];
-    PROJECT.editor_obj_id_counter = 0;
-    PROJECT.play_pattern = {};
-    PROJECT.selected = {
-        paths: [],
-        type: null
-    };
-}
-clear_project_obj();
+// load from localStorage if available, not project specific
 
 const OPTIONS = {
     selected_palette_value: 1,
     selected_tool: 'brush',
     run_after_change: false,
     pixel_scale: 14,
+    default_tile_size: 5,
 }
-// load from localStorage if available
 function load_options() {
     const saved_options = localStorage.getItem('options');
     if (saved_options) {
@@ -108,6 +87,29 @@ function load_options() {
     }
 }
 load_options();
+
+// manually saved and loaded
+const PROJECT = {
+    tile_size: undefined,
+    rules: undefined,
+    editor_obj_id_counter: undefined,
+    play_pattern: undefined,
+    selected: {
+        paths: undefined,
+        type: undefined
+    }
+}
+function clear_project_obj(tile_size = OPTIONS.default_tile_size) {
+    PROJECT.tile_size = tile_size;
+    PROJECT.rules = [];
+    PROJECT.editor_obj_id_counter = 0;
+    PROJECT.play_pattern = {};
+    PROJECT.selected = {
+        paths: [],
+        type: null
+    };
+}
+clear_project_obj();
 
 // temporary
 const UNDO_STACK = {
