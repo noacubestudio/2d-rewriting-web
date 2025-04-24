@@ -198,8 +198,9 @@ function new_project() {
     // open the dialog to create a new project
     NEW_PROJECT_DIALOG_EL.showModal();
 }
+
 NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
-    if (NEW_PROJECT_DIALOG_EL.returnValue === "OK") {
+    if (NEW_PROJECT_DIALOG_EL.returnValue === "ok") {
         // use the new tile size from the input
         const new_tile_size = +document.getElementById("tile-size-input").value;
         if (isNaN(new_tile_size) || new_tile_size < 1) {

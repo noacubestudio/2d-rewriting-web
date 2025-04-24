@@ -28,6 +28,8 @@ set_true_vh();
 // keyboard shortcuts
 document.addEventListener("keydown", (e) => {
     if (UI_STATE.is_drawing) return; // ignore key events while drawing
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return; // ignore key events in inputs
+    if (e.target.closest(".tool-button") || e.target.closest(".action-button")) return; // ignore key events in buttons
 
     const pressed = new Set([
         e.key,
