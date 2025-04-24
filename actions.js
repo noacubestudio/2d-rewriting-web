@@ -229,28 +229,51 @@ function start_drawing(pattern, x, y) {
     UI_STATE.draw_start_y = y;
     UI_STATE.draw_x = x;
     UI_STATE.draw_y = y;
-    UI_STATE.draw_pattern_before = structuredClone(pattern.pixels);
 
+    // if multiselect, draw in all selected patterns
+    if (PROJECT.selected.type === 'pattern' && PROJECT.selected.paths.length > 1) {
+        UI_STATE.draw_patterns = get_selected_rule_patterns(PROJECT.selected);
+    } else {
+        UI_STATE.draw_patterns = [pattern];
+    }
+
+    // clone the pixels for each pattern that is being edited. 
+    // this is so that lines and rectangles can be previewed before they are finished.
+    UI_STATE.draw_pixels_cloned = UI_STATE.draw_patterns.map((p) => structuredClone(p.pixels));
+
+    // draw
     pick_draw_value(pattern.pixels[y][x]); // based on previous value
-
-    draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
+    UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, OPTIONS.selected_tool, UI_STATE));
+    return UI_STATE.draw_patterns; // render these
 }
 
-function continue_drawing(pattern, x, y) {
+function continue_drawing(x, y) {
     if (OPTIONS.selected_tool !== 'brush') {
-        // reset the pattern to the state at the start of drawing
-        pattern.pixels = structuredClone(UI_STATE.draw_pattern_before);
+        // reset the pixels to the state at the start of drawing
+        for (let i = 0; i < UI_STATE.draw_patterns.length; i++) {
+            UI_STATE.draw_patterns[i].pixels = structuredClone(UI_STATE.draw_pixels_cloned[i]);
+        }
     }
     UI_STATE.draw_x = x;
     UI_STATE.draw_y = y;
 
-    draw_in_pattern(pattern, x, y, OPTIONS.selected_tool, UI_STATE);
+    UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, OPTIONS.selected_tool, UI_STATE));
+    return UI_STATE.draw_patterns; // render these
 }
 
-function finish_drawing(pattern) {
-    // run after change
-    if (OPTIONS.run_after_change && pattern.id === 'play') {
-        console.log("Running after change...");
+function finish_drawing() {
+    if (!UI_STATE.is_drawing) return;
+    
+    UI_STATE.is_drawing = false;
+    UI_STATE.draw_start_x = null;
+    UI_STATE.draw_start_y = null;
+    UI_STATE.draw_x = null;
+    UI_STATE.draw_y = null;
+    if (UI_STATE.draw_patterns.length === 1 && 
+        UI_STATE.draw_patterns[0].id === 'play' &&
+        OPTIONS.run_after_change) {
+        // run the action after drawing
+        console.log("Running after drawing...");
         do_action(ACTIONS.find(a => a.id === 'run_all').action, 'run_all');
     }
 }

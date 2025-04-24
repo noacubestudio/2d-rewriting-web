@@ -61,28 +61,13 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-// selection for rules
-RULES_CONTAINER_EL.addEventListener("click", (e) => {
-    function get_new_sel(el) {
-        const rule = el.closest(".rule");
-        const part = el.closest(".rule-part");
-        const pattern = el.closest(".pattern-wrap");
-        if (pattern) {
-            return { type: 'pattern', paths: [{
-                rule_id: rule?.dataset.id, part_id: part?.dataset.id, pattern_id: pattern?.dataset.id
-            }]}
-        } else if (part) {
-            return { type: 'part', paths: [{
-                rule_id: rule?.dataset.id, part_id: part?.dataset.id
-            }]}
-        } else if (rule) {
-            return { type: 'rule', paths: [{
-                rule_id: rule?.dataset.id
-            }]}
-        }
-        return { type: null, paths: [] };
+RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
+    if (UI_STATE.is_drawing) {
+        finish_drawing();
+        return;
     }
 
+    // select rules, parts or patterns.
     const old_sel = structuredClone(PROJECT.selected);
     const new_sel = get_new_sel(e.target);
     
@@ -105,8 +90,33 @@ RULES_CONTAINER_EL.addEventListener("click", (e) => {
     update_action_buttons();
 });
 
-// selection for play pattern
-SCREEN_CONTAINER_EL.addEventListener("click", (e) => {
+function get_new_sel(el) { // used above to get selection info from the event target
+    const rule = el.closest(".rule");
+    const part = el.closest(".rule-part");
+    const pattern = el.closest(".pattern-wrap");
+    if (pattern) {
+        return { type: 'pattern', paths: [{
+            rule_id: rule?.dataset.id, part_id: part?.dataset.id, pattern_id: pattern?.dataset.id
+        }]}
+    } else if (part) {
+        return { type: 'part', paths: [{
+            rule_id: rule?.dataset.id, part_id: part?.dataset.id
+        }]}
+    } else if (rule) {
+        return { type: 'rule', paths: [{
+            rule_id: rule?.dataset.id
+        }]}
+    }
+    return { type: null, paths: [] };
+}
+
+SCREEN_CONTAINER_EL.addEventListener("pointerup", (e) => {
+    if (UI_STATE.is_drawing) {
+        finish_drawing();
+        return;
+    }
+
+    // select or deselect play pattern.
     const old_sel = structuredClone(PROJECT.selected);
     const new_sel = { 
         type: (e.target.closest(".screen-wrap") ? 'play' : null), 
@@ -121,9 +131,9 @@ SCREEN_CONTAINER_EL.addEventListener("click", (e) => {
 });
 
 // stop gestures when leaving
-window.addEventListener("blur", (e) => UI_STATE.is_drawing = false);
-window.addEventListener("pointercancel", (e) => UI_STATE.is_drawing = false);
-window.addEventListener("pointerup", (e) => UI_STATE.is_drawing = false);
+window.addEventListener("blur", () => finish_drawing);
+window.addEventListener("pointercancel", () => finish_drawing);
+window.addEventListener("pointerup", () => finish_drawing);
 
 // drag files on window to load
 window.addEventListener("dragover", (e) => {
@@ -339,8 +349,10 @@ function create_pattern_editor_el(pattern, canvas) {
         if (cell.classList.contains("pixel")) {
             const x = +cell.dataset.x;
             const y = +cell.dataset.y;
-            start_drawing(pattern, x, y);
-            draw_pattern_to_canvas(pattern, canvas);
+            // setup, draw, render. could be multiple patterns at once.
+            const changed_patterns = start_drawing(pattern, x, y);
+            if (pattern.id === PROJECT.play_pattern.id) { draw_pattern_to_canvas(pattern, canvas); return; }
+            draw_patterns_to_canvases(changed_patterns);
         }
     });
 
@@ -351,19 +363,23 @@ function create_pattern_editor_el(pattern, canvas) {
             const x = +cell.dataset.x;
             const y = +cell.dataset.y;
             if (x === UI_STATE.draw_x && y === UI_STATE.draw_y) return; // no change
-            continue_drawing(pattern, x, y);
-            draw_pattern_to_canvas(pattern, canvas);
+            // draw and render
+            const changed_patterns = continue_drawing(x, y);
+            if (pattern.id === PROJECT.play_pattern.id) { draw_pattern_to_canvas(pattern, canvas); return; }
+            draw_patterns_to_canvases(changed_patterns);
         }
     });
 
-    grid.addEventListener("pointerup", () => {
-        if (!UI_STATE.is_drawing) return;
-        UI_STATE.is_drawing = false;
-        
-        finish_drawing(pattern);
-    });
+    // pointerup with UI_STATE.is_drawing is not specific to the grid and not handled here.
 
     return grid;
+}
+
+function draw_patterns_to_canvases(patterns) {
+    patterns.forEach(p => {
+        const canvas = document.querySelector(`.pattern-wrap[data-id="${p.id}"] canvas`);
+        if (canvas) draw_pattern_to_canvas(p, canvas);
+    });
 }
 
 function update_rule_highlight(sel_path, rule_el) {

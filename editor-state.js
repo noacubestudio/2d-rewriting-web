@@ -402,6 +402,7 @@ function flip_patterns_in_selection(sel, h_bool, v_bool) {
 
 function draw_in_pattern(pattern, x, y, tool, ui_state) {
     if (!pattern) return;
+    if (x < 0 || x >= pattern.width || y < 0 || y >= pattern.height) return;
 
     if (tool === 'brush') {
         pattern.pixels[y][x] = ui_state.draw_value;

@@ -131,5 +131,6 @@ const UI_STATE = {
     draw_start_y: null,
     draw_x: null,
     draw_y: null,
-    draw_pattern_before: null,
+    draw_patterns: [],      // set at start of drawing
+    draw_pixels_cloned: [], // set at start of drawing
 };
