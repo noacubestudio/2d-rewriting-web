@@ -17,10 +17,65 @@ function set_default_play_pattern(w = 8, h = 8) {
 function apply_rules(sel) {
     const apply_limit = RULE_APPLICATION_LIMIT;
     let application_count = 0;
+    let failed_application_count = 0;
     let limit_reached_count = 0;
     let rules_checked_count = 0;
 
     // if there are certain rules selected, only apply those rules.
+    // also do rule expansion here.
+    const ruleset = process_rules(PROJECT.rules, sel);
+
+    
+    if (OPTIONS.run_in_loop) {
+        // run until a single global limit is reached or until no more rules can be applied.
+        // when a rule is applied, go back to the start of the ruleset.
+        // when a rule can no longer be applied, go to the next rule.
+
+        // this will probably require optimization to be reasonably fast.
+        // the most obvious would be a shared cursor that doesn't have to reset to 0,0 every time.
+        // it just needs to offset to the first position that overlaps with the last applied rule.
+
+        // also, maybe it should not be possible for a pattern to match in the same place twice.
+
+        let rule_index = 0;
+        let loop_limit = apply_limit * ruleset.length; // TODO, arbitrary
+        rules_checked_count = null; // TODO, hard to track.
+        while (application_count < loop_limit && rule_index < ruleset.length) {
+            const rule = ruleset[rule_index];
+            let rule_success = apply_rule(rule);
+            if (rule_success) {
+                rule_index = 0;
+                application_count++;
+            } else {
+                rule_index++;
+                failed_application_count++;
+            }
+        }
+    } else {
+        // run in order
+        ruleset.forEach((rule) => {
+            let rule_success = true;
+            let rule_application_count = 0;
+            while (rule_success && rule_application_count < apply_limit) {
+                rule_success = apply_rule(rule);
+                rule_application_count++;
+            }
+            application_count += rule_application_count;
+            rules_checked_count++;
+            if (rule_application_count >= apply_limit) limit_reached_count++;
+        });
+    }
+
+    // application was successful if at least one rule was applied.
+    if (application_count > 0) {
+        return { rules_checked_count, application_count, failed_application_count, limit_reached_count };
+    }
+}
+
+function process_rules(rules, sel) {
+    const ruleset = [];
+
+    // get selected rule ids from the selection, otherwise use all rules
     let selected_rule_ids = null;
     if (sel) {
         if (sel.type === null || sel.type === 'play') return;
@@ -29,25 +84,17 @@ function apply_rules(sel) {
         if (selected_rule_ids.size === 0) return;
     }
 
-    PROJECT.rules.forEach((rule) => {
+    rules.forEach((rule) => {
+        // skip if the rule is not selected
         if (selected_rule_ids && !selected_rule_ids.has(rule.id)) return;
+        ruleset.push(rule);
 
-        let rule_success = true;
-        let rule_application_count = 0;
-        while (rule_success && rule_application_count < apply_limit) {
-            rule_success = apply_rule(rule);
-            rule_application_count++;
+        if (rule.rotate) {
+            // add other rotations of the rule to the ruleset
+            // TODO
         }
-
-        application_count += rule_application_count;
-        rules_checked_count++;
-        if (rule_application_count >= apply_limit) limit_reached_count++;
     });
-
-    // application was successful if at least one rule was applied.
-    if (application_count > 0) {
-        return { rules_checked_count, application_count, limit_reached_count };
-    }
+    return ruleset;
 }
 
 function apply_rule(rule) {

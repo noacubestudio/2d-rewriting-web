@@ -13,28 +13,39 @@ function do_action(action, id) {
         // this action changes the state of the play pattern, not the selected pattern
         const previous_state = structuredClone(PROJECT.play_pattern);
         const success = action(PROJECT.selected);
-        if (success) {
-            const application_count = success.application_count;
-            const limit_reached_count = success.limit_reached_count || 0;
-            const rules_checked_count = success.rules_checked_count;
-            const change_count = application_count - rules_checked_count; // last run is always unsuccessful
-            if (rules_checked_count === 1) {
-                if (application_count >= RULE_APPLICATION_LIMIT) {
-                    console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times, limit reached`);
-                } else {
-                    console.log(`Rule applied ${change_count} times`);
-                }
-            } else {
-                if (limit_reached_count > 0) {
-                    console.warn(`${rules_checked_count} rules checked ${RULE_APPLICATION_LIMIT} times (for ${limit_reached_count} rules)`);
-                } else {
-                    console.log(`${rules_checked_count} rules applied ${change_count} times`);
-                }
-            }
-            if (change_count < 1) return; // nothing changed
 
+        if (success) {
+            if (OPTIONS.run_in_loop) {
+                const match_count = success.application_count;
+                const check_count = success.failed_application_count + success.application_count;
+                console.log(`Ran rules in loop. Checked ${check_count} rules, applied ${match_count} rules`);
+                if (match_count < 1) return; // nothing changed
+
+            } else {
+                const application_count = success.application_count;
+                const limit_reached_count = success.limit_reached_count || 0;
+                const rules_checked_count = success.rules_checked_count;
+                const change_count = application_count - rules_checked_count; // last run is always unsuccessful
+                if (rules_checked_count === 1) {
+                    if (application_count >= RULE_APPLICATION_LIMIT) {
+                        console.warn(`Rule checked ${RULE_APPLICATION_LIMIT} times, limit reached`);
+                    } else {
+                        console.log(`Rule applied ${change_count} times`);
+                    }
+                } else {
+                    if (limit_reached_count > 0) {
+                        console.warn(`${rules_checked_count} rules checked ${RULE_APPLICATION_LIMIT} times (for ${limit_reached_count} rules)`);
+                    } else {
+                        console.log(`${rules_checked_count} rules applied ${change_count} times`);
+                    }
+                }
+                if (change_count < 1) return; // nothing changed
+            }
+            
             update_play_pattern_el();
             push_to_undo_stack(true, previous_state);
+        } else {
+            console.warn(`Action '${id}' failed, probably because no rules were applied`);
         }
         return;
     }

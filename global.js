@@ -57,7 +57,11 @@ const TOOL_SETTINGS = [
         { value: 'rect' , label: "🔳", keys: ["n"] },
         { value: 'fill' , label: "🪣", keys: ["f"] },
     ]},
-    { group: "tools", hint: "Run after change", option_key: 'run_after_change', options: [
+    { group: "toggle_autorun", hint: "Run after change", option_key: 'run_after_change', options: [
+        { value: false, label: "Off", keys: null },
+        { value: true , label: "On" , keys: null },
+    ]},
+    { group: "toggle_loop", hint: "Run in loop (WIP)", option_key: 'run_in_loop', options: [
         { value: false, label: "Off", keys: null },
         { value: true , label: "On" , keys: null },
     ]}
@@ -71,6 +75,7 @@ const OPTIONS = {
     selected_palette_value: 1,
     selected_tool: 'brush',
     run_after_change: false,
+    run_in_loop: false,
     pixel_scale: 14,
     default_tile_size: 5,
 }
