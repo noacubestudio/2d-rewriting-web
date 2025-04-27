@@ -89,9 +89,14 @@ function process_rules(rules, sel) {
         if (selected_rule_ids && !selected_rule_ids.has(rule.id)) return;
         ruleset.push(rule);
 
+        // add other 3 rotated versions of the rule
         if (rule.rotate) {
-            // add other rotations of the rule to the ruleset
-            // TODO
+            let next_rule_version = rule;
+            for (let i = 0; i < 3; i++) {
+                next_rule_version = structuredClone(next_rule_version);
+                get_rule_patterns(next_rule_version).forEach((p) => { rotate_pattern(p); });
+                ruleset.push(next_rule_version);
+            }
         }
     });
     return ruleset;

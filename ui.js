@@ -272,7 +272,9 @@ function create_rule_el(rule) {
 
     // rule label
     const rule_label = document.createElement("label");
-    rule_label.textContent = rule.label || "?";
+    let rule_label_text = rule.label || "?";
+    if (rule.rotate) rule_label_text += "x4"
+    rule_label.textContent = rule_label_text;
     rule_label.className = "rule-label";
     ruleEl.appendChild(rule_label);
 

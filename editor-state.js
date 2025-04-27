@@ -81,6 +81,13 @@ function get_selected_rule_patterns(sel) {
     return [...found_patterns];
 }
 
+// actual rule object -> all patterns in the rule
+function get_rule_patterns(rule) {
+    const result = [];
+    rule.parts.forEach(p => p.patterns.forEach(pat => result.push(pat)));
+    return result;
+}
+
 
 // functions that modify the state of the rules and play_pattern, usually based on the selected objects.
 // called from actions.js, they return:
@@ -273,6 +280,28 @@ function clear_selection(sel) {
         return output;
     }
 }
+
+
+// flags
+
+function toggle_rotations(sel) {
+    if (sel.type === null || sel.type === 'play') return;
+
+    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+
+    const rules = get_selected_rule_objects(sel);
+    if (rules.length) {
+        output.render_type = 'rule';
+        rules.forEach(({ rule }) => {
+            rule.rotate = !rule.rotate;
+            output.render_ids.add(rule.id);
+        });
+        return output;
+    }
+}
+
+
+// patterns
 
 function rotate_patterns_in_selection(sel) {
     if (sel.type === null) return;
