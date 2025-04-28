@@ -15,61 +15,53 @@ function set_default_play_pattern(w = 8, h = 8) {
 // functions that modify the play_pattern only.
 
 function apply_rules(sel) {
-    const apply_limit = RULE_APPLICATION_LIMIT;
-    let application_count = 0;
-    let failed_application_count = 0;
-    let limit_reached_count = 0;
-    let rules_checked_count = 0;
+    const group_loop_limit = RULE_APPLICATION_LIMIT;
+    const stats = {
+        application_count: 0,
+        failed_count: 0,
+        groups_application_count: 0,
+        groups_failed_count: 0,
+        groups_that_hit_limit: [],
+    };
 
     // if there are certain rules selected, only apply those rules.
-    // also do rule expansion here.
+    // return groups of rules (id, rules) to be applied.
     const ruleset = process_rules(PROJECT.rules, sel);
+    console.log("Ruleset:", ruleset);
 
-    
-    if (OPTIONS.run_in_loop) {
-        // run until a single global limit is reached or until no more rules can be applied.
-        // when a rule is applied, go back to the start of the ruleset.
-        // when a rule can no longer be applied, go to the next rule.
+    ruleset.forEach(({ id, rules }) => {
+        // the id is the rule id that expanded into a group of rules.
 
-        // this will probably require optimization to be reasonably fast.
-        // the most obvious would be a shared cursor that doesn't have to reset to 0,0 every time.
-        // it just needs to offset to the first position that overlaps with the last applied rule.
-
-        // also, maybe it should not be possible for a pattern to match in the same place twice.
+        // loop each group of rules before going to the next group.
+        // currently, loops are only generated for rotated rules.
 
         let rule_index = 0;
-        let loop_limit = apply_limit * ruleset.length; // TODO, arbitrary
-        rules_checked_count = null; // TODO, hard to track.
-        while (application_count < loop_limit && rule_index < ruleset.length) {
-            const rule = ruleset[rule_index];
+        let group_application_count = 0;
+        let group_failed_count = 0;
+        while (group_application_count < group_loop_limit && rule_index < rules.length) {
+            const rule = rules[rule_index];
             let rule_success = apply_rule(rule);
             if (rule_success) {
-                rule_index = 0;
-                application_count++;
+                group_application_count++;
+                rule_index = 0; // reset to start of group
             } else {
-                rule_index++;
-                failed_application_count++;
+                group_failed_count++;
+                rule_index++; // try the next rule in the group
             }
         }
-    } else {
-        // run in order
-        ruleset.forEach((rule) => {
-            let rule_success = true;
-            let rule_application_count = 0;
-            while (rule_success && rule_application_count < apply_limit) {
-                rule_success = apply_rule(rule);
-                rule_application_count++;
-            }
-            application_count += rule_application_count;
-            rules_checked_count++;
-            if (rule_application_count >= apply_limit) limit_reached_count++;
-        });
-    }
+        // add to the total number of applications and misses.
+        // add to the count of how many groups were applied and failed.
+        stats.application_count += group_application_count;
+        stats.failed_count += group_failed_count;
+        if (group_application_count >= 1) {
+            stats.groups_application_count++;
+            if (group_application_count >= group_loop_limit) stats.groups_that_hit_limit.push(id);
+        } else {
+            stats.groups_failed_count++;
+        }
+    });
 
-    // application was successful if at least one rule was applied.
-    if (application_count > 0) {
-        return { rules_checked_count, application_count, failed_application_count, limit_reached_count };
-    }
+    return stats;
 }
 
 function process_rules(rules, sel) {
@@ -87,7 +79,11 @@ function process_rules(rules, sel) {
     rules.forEach((rule) => {
         // skip if the rule is not selected
         if (selected_rule_ids && !selected_rule_ids.has(rule.id)) return;
-        ruleset.push(rule);
+
+        // start a new group if the rule is not part of one already.
+        // if it is part, keep adding to the last group.
+        const group = (rule.part_of_group) ? ruleset[ruleset.length - 1] : { id: rule.id, rules: [] };
+        group.rules.push(rule);
 
         // add other 3 rotated versions of the rule
         if (rule.rotate) {
@@ -95,9 +91,10 @@ function process_rules(rules, sel) {
             for (let i = 0; i < 3; i++) {
                 next_rule_version = structuredClone(next_rule_version);
                 get_rule_patterns(next_rule_version).forEach((p) => { rotate_pattern(p); });
-                ruleset.push(next_rule_version);
+                group.rules.push(next_rule_version);
             }
         }
+        if (!rule.part_of_group) ruleset.push(group); // add new group to the ruleset
     });
     return ruleset;
 }

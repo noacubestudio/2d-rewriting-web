@@ -273,7 +273,11 @@ function create_rule_el(rule) {
     // rule label
     const rule_label = document.createElement("label");
     let rule_label_text = rule.label || "?";
-    if (rule.rotate) rule_label_text += "x4"
+    if (rule.rotate) {
+        rule_label_text += "x4";
+        ruleEl.classList.add("flag-rotate");
+    }
+    if (rule.part_of_group) ruleEl.classList.add("flag-group");
     rule_label.textContent = rule_label_text;
     rule_label.className = "rule-label";
     ruleEl.appendChild(rule_label);

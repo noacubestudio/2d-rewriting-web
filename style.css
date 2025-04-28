@@ -109,6 +109,11 @@ button:active {
     overflow: auto;
     padding-bottom: 50px;
 }
+.rule.flag-group {
+    /* shift to the right, and get rid of the gap to the previous rule*/
+    margin-left: 12px;
+    margin-top: -8px;
+}
 .rule, .rule-part {
     width: fit-content;
     display: flex;

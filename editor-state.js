@@ -88,6 +88,12 @@ function get_rule_patterns(rule) {
     return result;
 }
 
+function keep_rules_valid() {
+    // after rules move around, make sure they stay valid.
+
+    PROJECT.rules[0].part_of_group = false; // first rule is never part of a group
+}
+
 
 // functions that modify the state of the rules and play_pattern, usually based on the selected objects.
 // called from actions.js, they return:
@@ -195,6 +201,7 @@ function delete_selection(sel) {
                 output.new_selected.paths.push(sel_path);
             }
         });
+        keep_rules_valid(); // deletion can cause other rules to move
         return output;
     }
 }
@@ -235,6 +242,7 @@ function reorder_selection(sel, direction) {
             if (target < 0 || target >= PROJECT.rules.length) return;
             [PROJECT.rules[index], PROJECT.rules[target]] = [PROJECT.rules[target], PROJECT.rules[index]];
         });
+        keep_rules_valid(); // movement can cause rules to become invalid in some cases
         return output;
     }
 }
@@ -284,7 +292,7 @@ function clear_selection(sel) {
 
 // flags
 
-function toggle_rotations(sel) {
+function toggle_rule_flag(sel, flag) {
     if (sel.type === null || sel.type === 'play') return;
 
     const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
@@ -293,10 +301,11 @@ function toggle_rotations(sel) {
     if (rules.length) {
         output.render_type = 'rule';
         rules.forEach(({ rule }) => {
-            rule.rotate = !rule.rotate;
+            if (flag === 'part_of_group' && PROJECT.rules.findIndex(r => r.id === rule.id) === 0) return;
+            rule[flag] = !rule[flag];
             output.render_ids.add(rule.id);
         });
-        return output;
+        if (output.render_ids.size) return output;
     }
 }
 

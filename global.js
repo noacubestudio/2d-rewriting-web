@@ -22,7 +22,8 @@ const ACTIONS = [
     { id: "clear"    , hint: "🧼 Clear"       , keys: ["w"                    ], action: (s) => clear_selection(s) },
     { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
 
-    { id: "set_rot"  , hint: "☑️ Rotations"   , keys: ["f"                    ], action: (s) => toggle_rotations(s) },
+    { id: "set_rot"  , hint: "☑️ Rotations"   , keys: ["f"                    ], action: (s) => toggle_rule_flag(s, 'rotate') },
+    { id: "set_group", hint: "☑️ Group"       , keys: ["g"                    ], action: (s) => toggle_rule_flag(s, 'part_of_group') },
 
     { id: "swap"     , hint: null             , keys: ["ArrowUp"              ], action: (s) => reorder_selection(s,-1) },
     { id: "swap"     , hint: null             , keys: ["ArrowDown"            ], action: (s) => reorder_selection(s,1) },
@@ -64,10 +65,6 @@ const TOOL_SETTINGS = [
         { value: false, label: "Off", keys: null },
         { value: true , label: "On" , keys: null },
     ]},
-    { group: "toggle_loop", hint: "Run in loop (WIP)", option_key: 'run_in_loop', options: [
-        { value: false, label: "Off", keys: null },
-        { value: true , label: "On" , keys: null },
-    ]}
 ];
 
 // mutable state
@@ -78,7 +75,6 @@ const OPTIONS = {
     selected_palette_value: 1,
     selected_tool: 'brush',
     run_after_change: false,
-    run_in_loop: false,
     pixel_scale: 14,
     default_tile_size: 5,
 }
@@ -87,6 +83,13 @@ function load_options() {
     if (saved_options) {
         try {
             const parsed_options = JSON.parse(saved_options);
+            // if a saved option is not in the default options, ignore it and mention it in the console
+            for (const key in parsed_options) {
+                if (!(key in OPTIONS)) {
+                    console.warn(`Ignoring unknown option "${key}" from localStorage`);
+                    delete parsed_options[key];
+                }
+            }
             Object.assign(OPTIONS, parsed_options);
             console.log("Loaded options from localStorage:", OPTIONS);
         } catch (err) {
