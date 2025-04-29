@@ -24,6 +24,7 @@ const ACTIONS = [
 
     { id: "set_rot"  , hint: "☑️ Rotations"   , keys: ["f"                    ], action: (s) => toggle_rule_flag(s, 'rotate') },
     { id: "set_group", hint: "☑️ Group"       , keys: ["g"                    ], action: (s) => toggle_rule_flag(s, 'part_of_group') },
+    { id: "set_com"  , hint: "☑️ Comment"     , keys: ["t"                    ], action: (s) => toggle_rule_flag(s, 'has_comment') },
 
     { id: "swap"     , hint: null             , keys: ["ArrowUp"              ], action: (s) => reorder_selection(s,-1) },
     { id: "swap"     , hint: null             , keys: ["ArrowDown"            ], action: (s) => reorder_selection(s,1) },

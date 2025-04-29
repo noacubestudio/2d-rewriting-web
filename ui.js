@@ -67,6 +67,8 @@ RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
         return;
     }
 
+    if (e.target.tagName === "INPUT") return; // comment input does not change selection
+
     // select rules, parts or patterns.
     const old_sel = structuredClone(PROJECT.selected);
     const new_sel = get_new_sel(e.target);
@@ -282,6 +284,35 @@ function create_rule_el(rule) {
     rule_label.className = "rule-label";
     ruleEl.appendChild(rule_label);
 
+    // rule content
+    const rule_content = document.createElement("div");
+    rule_content.className = "rule-content";
+    ruleEl.appendChild(rule_content);
+
+    // comment
+    if (rule.has_comment) {
+        const rule_comment = document.createElement("input");
+        const ghost = document.getElementById('input-ghost');
+        rule_comment.className = "rule-comment";
+        rule_comment.value = rule.comment || "";
+        rule_comment.placeholder = "Add a comment...";
+        rule_comment.addEventListener("input", (e) => {
+            rule.comment = e.target.value;
+            resize_input(rule_comment);
+        });
+        function resize_input(input) {
+            ghost.textContent = input.value || input.placeholder || " ";
+            ghost.style.font = window.getComputedStyle(input).font;
+            input.style.width = (ghost.scrollWidth + 16) + "px"; // padding
+        }
+        rule_content.appendChild(rule_comment);
+        resize_input(rule_comment); // initial
+    }
+
+    // parts
+    const rule_parts = document.createElement("div");
+    rule_parts.className = "rule-parts";
+    rule_content.appendChild(rule_parts);
     rule.parts.forEach(part => {
         const partEl = document.createElement("div");
         partEl.className = "rule-part";
@@ -315,7 +346,7 @@ function create_rule_el(rule) {
             }
         });
 
-        ruleEl.appendChild(partEl);
+        rule_parts.appendChild(partEl);
     });
 
     if (PROJECT.selected.type !== 'play') {

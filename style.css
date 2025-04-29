@@ -1,4 +1,21 @@
-html, body, div, label, button, canvas, p, input {
+/* Font: https://github.com/arrowtype/recursive/blob/main/fonts/ArrowType-Recursive-1.085/LICENSE.txt */
+
+/* The bare minimum English subset, plus copyright & arrows (← ↑ → ↓) & quotes (“ ” ‘ ’) & bullet (•) */
+@font-face {
+    font-family: 'RecVar';
+    font-style: oblique 0deg 15deg;
+    font-weight: 300 1000;
+    font-display: swap;
+    src: url('./fonts/Recursive_VF_1.085--subset_range_english_basic.woff2') format('woff2');
+    unicode-range: U+0020-007F,U+00A9,U+2190-2193,U+2018,U+2019,U+201C,U+201D,U+2022;
+}
+
+@font-face {
+    font-family: 'RecVar';
+    src: url('./fonts/Recursive_VF_1.085.woff2') format('woff2');
+}
+
+html, body, div, label, button, canvas, p, input, textarea {
     margin: 0;
     padding: 0;
     border: 0;
@@ -21,7 +38,7 @@ body {
     padding: 0;
     background: #222;
     font-size: 14px;
-    font-family: 'Segoe UI Variable', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'RecVar', 'Segoe UI Variable', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
 }
 
@@ -122,10 +139,23 @@ button:active {
     outline-offset: -0.5px;
     /* padding: 0px 0px 0px 20px; */
 }
-.rule .rule-label {
-    font-family: monospace;
+.rule-parts {
+    display: flex;
+}
+.rule-content {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.rule .rule-label, .rule .rule-comment {
     padding: 4px 8px;
     color: #aaa;
+}
+.rule .rule-comment {
+    background-color: transparent;
+    color: #ddd;
+    width: 100%;
+    min-width: 60px;
 }
 .rule-part {
     background: #333;
