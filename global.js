@@ -22,9 +22,9 @@ const ACTIONS = [
     { id: "clear"    , hint: "🧼 Clear"       , keys: ["w"                    ], action: (s) => clear_selection(s) },
     { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: (s) => duplicate_selection(s) },
 
-    { id: "set_rot"  , hint: "☑️ Rotations"   , keys: ["f"                    ], action: (s) => toggle_rule_flag(s, 'rotate') },
-    { id: "set_group", hint: "☑️ Group"       , keys: ["g"                    ], action: (s) => toggle_rule_flag(s, 'part_of_group') },
-    { id: "set_com"  , hint: "☑️ Comment"     , keys: ["t"                    ], action: (s) => toggle_rule_flag(s, 'has_comment') },
+    { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["f"                    ], action: (s) => toggle_rule_flag(s, 'rotate') },
+    { id: "rule_flag", hint: "☑️ Group"       , keys: ["g"                    ], action: (s) => toggle_rule_flag(s, 'part_of_group') },
+    { id: "rule_flag", hint: "☑️ Comment"     , keys: ["t"                    ], action: (s) => toggle_rule_flag(s, 'has_comment') },
 
     { id: "swap"     , hint: null             , keys: ["ArrowUp"              ], action: (s) => reorder_selection(s,-1) },
     { id: "swap"     , hint: null             , keys: ["ArrowDown"            ], action: (s) => reorder_selection(s,1) },
@@ -44,7 +44,7 @@ const ACTIONS = [
 ];
 const ACTIONS_SHOWN_WHEN_NOTHING_SELECTED = ['run_all', 'save', 'load', 'new', 'undo', 'scale'];
 const ACTIONS_HIDDEN_WHEN_RULE_SELECTED   = ['run_all', 'save', 'load', 'new', 'scale'];
-const ACTIONS_HIDDEN_WHEN_PLAY_SELECTED   = ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'new', 'scale'];
+const ACTIONS_HIDDEN_WHEN_PLAY_SELECTED   = ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'new', 'scale', 'rule_flag'];
 const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'undo'];
 
 const TOOL_SETTINGS = [

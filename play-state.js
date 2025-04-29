@@ -27,7 +27,6 @@ function apply_rules(sel) {
     // if there are certain rules selected, only apply those rules.
     // return groups of rules (id, rules) to be applied.
     const ruleset = process_rules(PROJECT.rules, sel);
-    console.log("Ruleset:", ruleset);
 
     ruleset.forEach(({ id, rules }) => {
         // the id is the rule id that expanded into a group of rules.
@@ -82,7 +81,8 @@ function process_rules(rules, sel) {
 
         // start a new group if the rule is not part of one already.
         // if it is part, keep adding to the last group.
-        const group = (rule.part_of_group) ? ruleset[ruleset.length - 1] : { id: rule.id, rules: [] };
+        // ignore the bigger groups when only some rules are selected because it won't make sense
+        const group = (rule.part_of_group && !sel) ? ruleset[ruleset.length - 1] : { id: rule.id, rules: [] };
         group.rules.push(rule);
 
         // add other 3 rotated versions of the rule
@@ -94,7 +94,7 @@ function process_rules(rules, sel) {
                 group.rules.push(next_rule_version);
             }
         }
-        if (!rule.part_of_group) ruleset.push(group); // add new group to the ruleset
+        if (!rule.part_of_group || sel) ruleset.push(group); // add new group to the ruleset
     });
     return ruleset;
 }
