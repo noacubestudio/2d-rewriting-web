@@ -157,7 +157,7 @@ function delete_selection(sel) {
         object_groups.forEach(({ rule, part, pattern }) => {
             const index = part.patterns.findIndex(p => p.id === pattern.id);
             const sel_path = { rule_id: rule.id, part_id: part.id, pattern_id: pattern.id };
-            if (part.patterns.length <= 2) { // keep at least 2 patterns
+            if (part.patterns.length <= 1) { // keep at least 1 pattern
                 output.new_selected.paths.push(sel_path);
                 return;
             }

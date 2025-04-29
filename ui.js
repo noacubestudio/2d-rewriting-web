@@ -342,7 +342,8 @@ function create_rule_el(rule) {
 
             if (pat_index === 0) {
                 const arrowEl = document.createElement("label");
-                arrowEl.textContent = '▶';
+                arrowEl.textContent = part.patterns.length > 1 ? '→' : '?';
+                arrowEl.style.fontSize = part.patterns.length > 1 ? "1.3em" : "1em";
                 partEl.appendChild(arrowEl);
             }
         });

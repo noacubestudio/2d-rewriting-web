@@ -116,8 +116,8 @@ function apply_rule(rule) {
     }
 
     // apply the rule to the play_pattern
-    apply_matches_in_target(part_matches, target_pattern);
-    return true;
+    const has_replaced = apply_matches_in_target(part_matches, target_pattern);
+    return has_replaced; // a useless rule does not need to be checked over and over again.
 }
 
 function find_pattern_in_target(pattern, target) {
@@ -145,7 +145,11 @@ function is_pattern_match(pattern, target, x, y) {
 }
 
 function apply_matches_in_target(part_matches, target) {
+    let has_replaced = false;
     part_matches.forEach(({ part, x, y }) => {
+        // no replace patterns
+        if (part.patterns.length === 1) return;
+
         // random pattern except the first one, which is the before state
         const random_replace_index = 1 + Math.floor(Math.random() * (part.patterns.length - 1));
         const pattern = part.patterns[random_replace_index];
@@ -154,7 +158,9 @@ function apply_matches_in_target(part_matches, target) {
                 const pattern_pixel = pattern.pixels[py][px];
                 if (pattern_pixel === -1) continue; // skip empty pixels
                 target.pixels[y + py][x + px] = pattern.pixels[py][px];
+                has_replaced = true;
             }
         }
     });
+    return has_replaced;
 }
