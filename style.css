@@ -15,6 +15,12 @@
     src: url('./fonts/Recursive_VF_1.085.woff2') format('woff2');
 }
 
+:root {
+    /* defaults */
+    --tile-size: 5;
+    --pixel-scale: 14;
+}
+
 html, body, div, label, button, canvas, p, input, textarea {
     margin: 0;
     padding: 0;
@@ -66,6 +72,8 @@ button {
     font-weight: 600;
     height: 2.4em;
     line-height: 0;
+    user-select: none;
+    -webkit-user-select: none;
 }
 button:hover {
     background: #444;
@@ -73,19 +81,29 @@ button:hover {
 button:active {
     background: #555;
 }
+.color-button, .color-button:hover, .color-button:active {
+    background-color: #333;
+    background-image:
+        linear-gradient(to top left , transparent 0%, transparent calc(50% - 0.8px),#555 50%, transparent calc(50% + 0.8px), transparent 100%),
+        linear-gradient(to top right, transparent 0%, transparent calc(50% - 0.8px),#555 50%, transparent calc(50% + 0.8px), transparent 100%);
+    background-size: calc(var(--pixel-scale) * 1px) calc(var(--pixel-scale) * 1px);
+}
 
 .actions, .tool-settings {
     background: #222;
     width: 100%;
     padding: 8px;
+    display: flex;
+    justify-content: center;
 }
 .actions {
     border-top: #666 solid 1px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
 }
 .tool-settings {
     border-bottom: #666 solid 1px;
     flex-shrink: 0;
-    display: flex;
     gap: 10px;
     overflow-x: scroll;
 }
@@ -137,7 +155,7 @@ button:active {
     background: #555;
     outline: 1px solid #777;
     outline-offset: -0.5px;
-    /* padding: 0px 0px 0px 20px; */
+    cursor: pointer;
 }
 .rule-parts {
     display: flex;
@@ -150,6 +168,7 @@ button:active {
 .rule .rule-label, .rule .rule-comment {
     padding: 4px 8px;
     color: #aaa;
+    cursor: pointer;
 }
 .rule .rule-comment {
     background-color: transparent;
@@ -159,13 +178,12 @@ button:active {
 }
 .rule-part {
     background: #333;
-    /* border-radius: 2px; */
     gap: 6px;
     align-items: center;
     color: #aaa;
     padding: 8px;
 }
-.rule-part label {
+.rule-part label { /* the arrow between parts */
     font-size: 1em;
 }
 .pattern-wrap {
@@ -180,6 +198,10 @@ button:active {
     image-rendering: pixelated;
     width: 64px; /* default */
     height: 64px;  /* default */
+}
+.rule-label, .rule_content * {
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* play screen */
@@ -204,13 +226,23 @@ button:active {
 
 /* shared */
 .pattern-wrap, .screen-wrap {
-    background-image: repeating-linear-gradient(45deg,#666,#666 1px,#333 1px,#333 4px);
+    background-color: #333;
+    background-image:
+        linear-gradient(to top left , transparent 0%, transparent calc(50% - 0.8px),#555 50%, transparent calc(50% + 0.8px), transparent 100%),
+        linear-gradient(to top right, transparent 0%, transparent calc(50% - 0.8px),#555 50%, transparent calc(50% + 0.8px), transparent 100%);
+    background-size: calc(var(--pixel-scale) * 1px) calc(var(--pixel-scale) * 1px);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
 }
 .grid {
     display: grid;
     position: absolute;
     top: 0; left: 0;
     z-index: 10;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
 }
 .grid::after {
     /* Helps show the tile borders for multi-tile grids */

@@ -12,6 +12,7 @@ function init_starter_project() {
     set_default_rules();
     set_default_play_pattern();
     // render
+    update_css_vars();
     update_all_rule_els();
     update_play_pattern_el();
 }
@@ -23,13 +24,13 @@ update_action_buttons();
 set_true_vh();
 
 
+
 // permanent window/ main DOM/ document event listeners
 
 // keyboard shortcuts
 document.addEventListener("keydown", (e) => {
     if (UI_STATE.is_drawing) return; // ignore key events while drawing
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return; // ignore key events in inputs
-    if (e.target.closest(".tool-button") || e.target.closest(".action-button")) return; // ignore key events in buttons
 
     const pressed = new Set([
         e.key,
@@ -153,6 +154,7 @@ window.addEventListener("drop", (e) => {
 });
 
 window.addEventListener("resize", set_true_vh);
+screen.orientation.addEventListener("change", set_true_vh); // mobile orientation change
 function set_true_vh() {
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -212,8 +214,7 @@ function render_menu_buttons() {
                 btn.classList.add("color-button");
                 if (value !== -1) {
                     btn.style.backgroundColor = value_to_color(value);
-                } else {
-                    btn.style.backgroundImage = "repeating-linear-gradient(45deg,#666,#666 1px,#333 1px,#333 4px)";
+                    btn.style.backgroundImage = "none";
                 }
                 btn.style.color = contrast_to_color(value);
             }
@@ -363,8 +364,6 @@ function create_pattern_editor_el(pattern, canvas) {
     grid.style.gridTemplateColumns = `repeat(${pattern.width}, 1fr)`;
     grid.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
     grid.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
-    grid.style.setProperty("--tile-size", PROJECT.tile_size);
-    grid.style.setProperty("--pixel-scale", OPTIONS.pixel_scale);
 
     // pixels
     for (let y = 0; y < pattern.height; y++) {
@@ -442,7 +441,7 @@ function update_all_rule_els() {
         const rule_el = create_rule_el(rule);
         RULES_CONTAINER_EL.appendChild(rule_el);
     });
-    console.log(`Rendered all ${PROJECT.rules.length} rules`);
+    // console.log(`Rendered all ${PROJECT.rules.length} rules`);
 }
 
 function update_rule_el_by_id(rule_id) {
@@ -458,7 +457,7 @@ function update_rule_el_by_id(rule_id) {
     const new_el = create_rule_el(PROJECT.rules[index]);
     RULES_CONTAINER_EL.insertBefore(new_el, RULES_CONTAINER_EL.children[index]);
 
-    console.log(`Rendered rule with id: ${rule_id}`);
+    // console.log(`Rendered rule with id: ${rule_id}`);
 }
 
 function update_play_pattern_el() {
@@ -478,7 +477,7 @@ function update_play_pattern_el() {
     } else{
         wrap_el.classList.remove("selected");
     }
-    console.log("Rendered play pattern");
+    // console.log("Rendered play pattern");
 }
 
 function update_selected_els(old_sel, new_sel) {

@@ -129,10 +129,16 @@ function zoom_pixel_grids(change) {
     OPTIONS.pixel_scale += change;
     OPTIONS.pixel_scale = Math.max(2, Math.min(OPTIONS.pixel_scale, 100));
     save_options();
+    update_css_vars();
 
     // render everything again
     update_all_rule_els();
     update_play_pattern_el();
+}
+
+function update_css_vars() {
+    document.documentElement.style.setProperty('--pixel-scale', `${OPTIONS.pixel_scale}`);
+    document.documentElement.style.setProperty('--tile-size', `${PROJECT.tile_size}`);
 }
 
 function save_options() {
@@ -177,6 +183,7 @@ function load_project(file) {
 
             clear_undo_stack();
 
+            update_css_vars();
             update_all_rule_els();
             update_play_pattern_el();
         } catch (err) {

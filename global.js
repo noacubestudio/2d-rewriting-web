@@ -1,6 +1,6 @@
 // constants
 
-const PIXEL_PALLETTE         = ["#222", "#fff", "#6cd9b5", "#036965"];
+const PIXEL_PALLETTE         = ["#131916", "#fff", "#6cd9b5", "#036965"]; // 'black', white, light, dark
 const TEXT_ON_PIXEL_PALLETTE = ["#fff", "#000", "#000", "#fff"];
 
 const RULE_APPLICATION_LIMIT = 10000;
@@ -49,11 +49,11 @@ const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'undo'];
 
 const TOOL_SETTINGS = [
     { group: "colors", hint: null, option_key: 'selected_palette_value', options: [
-        { value: 1, label: "White"   , keys: ["1"] },
-        { value: 2, label: "Light"   , keys: ["2"] },
-        { value: 3, label: "Dark"    , keys: ["3"] },
-        { value: 0, label: "Black"   , keys: ["4"] },
-        { value:-1, label: "Wildcard", keys: ["5"] },
+        { value: 1, label: "1"  , keys: ["1"] },
+        { value: 2, label: "2"  , keys: ["2"] },
+        { value: 3, label: "3"  , keys: ["3"] },
+        { value: 0, label: "4"  , keys: ["4"] },
+        { value:-1, label: "Any", keys: ["5"] },
 
     ]},
     { group: "tools", hint: "Tool", option_key: 'selected_tool', options: [
