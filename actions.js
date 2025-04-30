@@ -146,7 +146,7 @@ function save_options() {
 }
 
 function save_project() {
-    const data = JSON.stringify(PROJECT, null, 2);
+    const data = JSON.stringify(PROJECT, null, null);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     
