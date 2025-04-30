@@ -54,7 +54,7 @@ document.addEventListener("keydown", (e) => {
             if (!binding.keys) continue;
             if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
                 e.preventDefault();
-                do_tool_setting(binding.action);
+                do_tool_setting(bindings_group.option_key, binding.value);
                 update_tool_buttons(bindings_group.group, i);
                 return;
             }
