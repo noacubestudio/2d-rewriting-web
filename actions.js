@@ -45,12 +45,10 @@ function do_action(action, id) {
         PROJECT.selected = success.new_selected;
 
         // render changes 
-        if (success.render_type === 'play') {
+        if (success.render_play) {
             update_play_pattern_el();
-        } else if (success.render_type === 'rules') {
-            update_all_rule_els();
-        } else if (success.render_type === 'rule') {
-            [...success.render_ids].forEach(update_rule_el_by_id);
+        } else if (success.render_ids.size) {
+            [...success.render_ids].forEach(update_rule_el_by_id); // re-render - or just remove if deleted
         } else {
             console.warn("Action occured, but no re-render specified");
         }

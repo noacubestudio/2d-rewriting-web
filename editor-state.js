@@ -98,17 +98,16 @@ function keep_rules_valid() {
 // functions that modify the state of the rules and play_pattern, usually based on the selected objects.
 // called from actions.js, they return:
 // - new_selected (like PROJECT.selected) to be set in the state
-// - render_ids ([] of rule_id) or render_type ('play' | 'rules') to be rendered.
+// - render_ids ([] of rule_id) or render_play (bool) to be rendered.
 
 function duplicate_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     output.new_selected.paths = [];
 
     if (sel.type === 'pattern') {
-        output.render_type = 'rule';
         object_groups.forEach(({ rule, part, pattern }) => {
             const insert_index = part.patterns.findIndex(p => p.id === pattern.id) + 1;
             const new_pattern = deep_clone_with_ids(pattern);
@@ -116,9 +115,7 @@ function duplicate_selection(sel) {
             output.new_selected.paths.push({ rule_id: rule.id, part_id: part.id, pattern_id: new_pattern.id });
             output.render_ids.add(rule.id);
         });
-        return output;
     } else if (sel.type === 'part') {
-        output.render_type = 'rule';
         object_groups.forEach(({ rule, part }) => {
             const insert_index = rule.parts.findIndex(p => p.id === part.id) + 1;
             const new_part = deep_clone_with_ids(part);
@@ -126,34 +123,32 @@ function duplicate_selection(sel) {
             output.new_selected.paths.push({ rule_id: rule.id, part_id: new_part.id });
             output.render_ids.add(rule.id);
         });
-        return output;
     } else if (sel.type === 'rule') {
-        output.render_type = 'rules';
         object_groups.forEach(({ rule }) => {
             const insert_index = PROJECT.rules.findIndex(r => r.id === rule.id) + 1;
             const new_rule = deep_clone_with_ids(rule);
             PROJECT.rules.splice(insert_index, 0, new_rule);
             output.new_selected.paths.push({ rule_id: new_rule.id });
+            output.render_ids.add(new_rule.id);
+            output.render_ids.add(rule.id); // also render original to deselect
         });
-        return output;
-    }
+    } else return; // should not happen
+    return output;
 }
 
 function delete_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     output.new_selected.paths = [];
 
     // each deletion can silently fail. in those cases, the patterns should remain selected.
-    // otherwise, select the previous pattern, part or rule, if available.
-    // if not, don't select anything.
+    // otherwise, select the previous pattern, part or rule, if available. if not, don't select anything.
 
     // TODO: selecting all the previous patterns can break because those might themselves be deleted???
 
     if (sel.type === 'pattern') {
-        output.render_type = 'rule';
         object_groups.forEach(({ rule, part, pattern }) => {
             const index = part.patterns.findIndex(p => p.id === pattern.id);
             const sel_path = { rule_id: rule.id, part_id: part.id, pattern_id: pattern.id };
@@ -168,9 +163,7 @@ function delete_selection(sel) {
                 output.new_selected.paths.push(sel_path);
             } 
         });
-        return output;
     } else if (sel.type === 'part') {
-        output.render_type = 'rule';
         object_groups.forEach(({ rule, part }) => {
             const index = rule.parts.findIndex(p => p.id === part.id);
             const sel_path = { rule_id: rule.id, part_id: part.id };
@@ -185,9 +178,7 @@ function delete_selection(sel) {
                 output.new_selected.paths.push(sel_path);
             }
         });
-        return output;
     } else if (sel.type === 'rule') {
-        output.render_type = 'rules';
         object_groups.forEach(({ rule }) => {
             const index = PROJECT.rules.findIndex(r => r.id === rule.id);
             const sel_path = { rule_id: rule.id };
@@ -195,27 +186,28 @@ function delete_selection(sel) {
                 output.new_selected.paths.push(sel_path);
                 return;
             }
+            output.render_ids.add(rule.id); // delete in DOM
             PROJECT.rules.splice(index, 1);
             if (PROJECT.rules[index - 1]) {
                 sel_path.rule_id = PROJECT.rules[index - 1].id;
                 output.new_selected.paths.push(sel_path);
+                output.render_ids.add(PROJECT.rules[index - 1].id); // select in DOM
             }
         });
         keep_rules_valid(); // deletion can cause other rules to move
-        return output;
-    }
+    } else return; // should not happen
+    return output;
 }
 
 function reorder_selection(sel, direction) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     // TODO: weird things could happen with adjacent selected objects being reordered at the same time.
 
     if (sel.type === 'pattern') {
-        output.render_type = 'rule';
         object_groups.forEach(({ rule, part, pattern }) => {
             const index = part.patterns.findIndex(p => p.id === pattern.id);
             const target = index + direction;
@@ -223,9 +215,7 @@ function reorder_selection(sel, direction) {
             [part.patterns[index], part.patterns[target]] = [part.patterns[target], part.patterns[index]];
             output.render_ids.add(rule.id);
         });
-        return output;
     } else if (sel.type === 'part') {
-        output.render_type = 'rule';
         object_groups.forEach(({ rule, part }) => {
             const index = rule.parts.findIndex(p => p.id === part.id);
             const target = index + direction;
@@ -233,34 +223,33 @@ function reorder_selection(sel, direction) {
             [rule.parts[index], rule.parts[target]] = [rule.parts[target], rule.parts[index]];
             output.render_ids.add(rule.id);
         });
-        return output;
     } else if (sel.type === 'rule') {
-        output.render_type = 'rules';
         object_groups.forEach(({ rule }) => {
             const index = PROJECT.rules.findIndex(r => r.id === rule.id);
             const target = index + direction;
             if (target < 0 || target >= PROJECT.rules.length) return;
             [PROJECT.rules[index], PROJECT.rules[target]] = [PROJECT.rules[target], PROJECT.rules[index]];
+            output.render_ids.add(PROJECT.rules[index].id);
+            output.render_ids.add(PROJECT.rules[target].id); // render both to swap
         });
         keep_rules_valid(); // movement can cause rules to become invalid in some cases
-        return output;
-    }
+    } else return; // should not happen
+    return output;
 }
 
 function clear_selection(sel) {
     if (sel.type === null) return;
 
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
         const pattern = PROJECT.play_pattern;
         pattern.pixels = Array.from({ length: pattern.height }, () => Array(pattern.width).fill(0));
-        output.render_type = 'play';
+        output.render_play = true;
         return output;
     }
 
     const object_groups = get_selected_rule_objects(sel);
-    output.render_type = 'rule';
     
     if (sel.type === 'pattern') {
         object_groups.forEach(({ rule, part, pattern }) => {
@@ -268,14 +257,12 @@ function clear_selection(sel) {
             pattern.pixels = Array.from({ length: pattern.height }, () => Array(pattern.width).fill(0));
             output.render_ids.add(rule.id);
         });
-        return output;
     } else if (sel.type === 'part') {
         object_groups.forEach(({ rule, part }) => {
             // reset part to initial state
             part.patterns = [blank_pattern(), blank_pattern()];
             output.render_ids.add(rule.id);
         });
-        return output;
     } else if (sel.type === 'rule') {
         object_groups.forEach(({ rule }) => {
             // reset rule to initial state
@@ -285,8 +272,8 @@ function clear_selection(sel) {
             }];
             output.render_ids.add(rule.id);
         });
-        return output;
-    }
+    } else return; // should not happen
+    return output;
 }
 
 
@@ -295,18 +282,15 @@ function clear_selection(sel) {
 function toggle_rule_flag(sel, flag) {
     if (sel.type === null || sel.type === 'play') return;
 
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
-
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     const rules = get_selected_rule_objects(sel);
-    if (rules.length) {
-        output.render_type = 'rule';
-        rules.forEach(({ rule }) => {
-            if (flag === 'part_of_group' && PROJECT.rules.findIndex(r => r.id === rule.id) === 0) return;
-            rule[flag] = !rule[flag];
-            output.render_ids.add(rule.id);
-        });
-        if (output.render_ids.size) return output;
-    }
+
+    rules.forEach(({ rule }) => {
+        if (flag === 'part_of_group' && PROJECT.rules.findIndex(r => r.id === rule.id) === 0) return;
+        rule[flag] = !rule[flag];
+        output.render_ids.add(rule.id);
+    });
+    if (output.render_ids.size) return output;
 }
 
 
@@ -315,11 +299,11 @@ function toggle_rule_flag(sel, flag) {
 function rotate_patterns_in_selection(sel) {
     if (sel.type === null) return;
 
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
         rotate_pattern(PROJECT.play_pattern, 1);
-        output.render_type = 'play';
+        output.render_play = true;
         return output;
     }
 
@@ -335,7 +319,6 @@ function rotate_patterns_in_selection(sel) {
     }
 
     if (patterns.length) {
-        output.render_type = 'rule';
         patterns.forEach(pattern => {
             rotate_pattern(pattern, rotate_times);
         });
@@ -350,14 +333,14 @@ function rotate_patterns_in_selection(sel) {
 function resize_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     const tile_size = PROJECT.tile_size;
 
     if (sel.type === 'play') {
         const new_width = Math.max(tile_size, PROJECT.play_pattern.width + x_direction * tile_size);
         const new_height = Math.max(tile_size, PROJECT.play_pattern.height + y_direction * tile_size);
         resize_pattern(PROJECT.play_pattern, new_width, new_height);
-        output.render_type = 'play';
+        output.render_play = true;
         return output;
     }
 
@@ -371,7 +354,6 @@ function resize_patterns_in_selection(sel, x_direction, y_direction) {
 
     const patterns = get_selected_rule_patterns(sel_for_resize);
     if (patterns.length) {
-        output.render_type = 'rule';
         patterns.forEach(pattern => {
             const new_width = Math.max(tile_size, pattern.width + x_direction * tile_size);
             const new_height = Math.max(tile_size, pattern.height + y_direction * tile_size);
@@ -388,17 +370,16 @@ function resize_patterns_in_selection(sel, x_direction, y_direction) {
 function shift_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
         shift_pattern(PROJECT.play_pattern, x_direction, y_direction);
-        output.render_type = 'play';
+        output.render_play = true;
         return output;
     }
 
     const patterns = get_selected_rule_patterns(sel);
     if (patterns.length) {
-        output.render_type = 'rule';
         patterns.forEach(pattern => shift_pattern(pattern, x_direction, y_direction));
         // also loop through the rules to know what to render
         get_selected_rule_objects(sel).forEach(({ rule }) => {
@@ -411,18 +392,17 @@ function shift_patterns_in_selection(sel, x_direction, y_direction) {
 function flip_patterns_in_selection(sel, h_bool, v_bool) {
     if (sel.type === null) return;
 
-    const output = { new_selected: structuredClone(sel), render_type: null, render_ids: new Set() };
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
         if (h_bool) flip_pattern(PROJECT.play_pattern, true);
         if (v_bool) flip_pattern(PROJECT.play_pattern, false);
-        output.render_type = 'play';
+        output.render_play = true;
         return output;
     }
     
     const patterns = get_selected_rule_patterns(sel);
     if (patterns.length) {
-        output.render_type = 'rule';
         patterns.forEach(pattern => {
             if (h_bool) flip_pattern(pattern, true);
             if (v_bool) flip_pattern(pattern, false);

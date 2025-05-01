@@ -447,13 +447,13 @@ function update_all_rule_els() {
 
 function update_rule_el_by_id(rule_id) {
     const index = PROJECT.rules.findIndex(r => r.id === rule_id);
-    if (index === -1) return;
 
     // Remove existing DOM node
     const old_el = document.querySelector(`.rule[data-id="${rule_id}"]`);
     if (old_el) old_el.remove();
 
     // Re-render and insert at the right position
+    if (index === -1) return; // only if it exists still
     PROJECT.rules[index].label = index + 1;
     const new_el = create_rule_el(PROJECT.rules[index]);
     RULES_CONTAINER_EL.insertBefore(new_el, RULES_CONTAINER_EL.children[index]);
