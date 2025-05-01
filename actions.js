@@ -9,7 +9,7 @@ function do_action(action, id) {
     }
     
     if (id === 'run' || id === 'run_all') {
-        // this action changes the state of the play pattern, not the selected pattern
+        // change the play pattern.
         const previous_state = structuredClone(PROJECT.play_pattern);
         const stats = action(PROJECT.selected);
 
@@ -23,12 +23,18 @@ function do_action(action, id) {
         if (groups_that_hit_limit.length > 0) {
             console.warn(`Rule groups ${groups_that_hit_limit.join(', ')} reached the application limit of ${RULE_APPLICATION_LIMIT}`);
         }
-        console.log(`Applied ${groups_application_count} groups out of ${groups_application_count + groups_failed_count}.`);
-        console.log(`In total, rules applied ${application_count} time(s) and failed ${failed_count} time(s).`);
+        console.log(`${groups_application_count} of ${groups_application_count + groups_failed_count} groups applied.\n` 
+            + `In total, replaced ${application_count} time(s) and failed ${failed_count} time(s).`);
         
         // react to changes
         if (application_count < 1) return; // nothing changed
         update_play_pattern_el();
+
+        // add the state before the rules ran to the undo stack.
+        // if rules only ran after another action, then don't push the state again.
+        // this way a single undo will also undo the input action, such as drawing.
+        const last_action_target = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
+        if (OPTIONS.run_after_change && last_action_target === "play_pattern") return;
         push_to_undo_stack(true, previous_state);
         return;
     }
