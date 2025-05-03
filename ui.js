@@ -1,4 +1,12 @@
-// only used in ui.js
+import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./global.js";
+import { clear_project_obj, clear_undo_stack } from "./global.js";
+
+import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options } from "./actions.js";
+import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
+
+/** @typedef {import('./global.js').Selection} Selection */
+
+
 const RULES_CONTAINER_EL = document.getElementById("rules-container");
 const SCREEN_CONTAINER_EL = document.getElementById("screen-container");
 const ACTIONS_CONTAINER_EL = document.getElementById("actions-container");
@@ -7,23 +15,10 @@ const TOOL_SETTINGS_CONTAINER_EL = document.getElementById("tool-settings-contai
 
 // init
 
-function init_starter_project() {
-    // add defaults
-    set_default_rules();
-    set_default_play_pattern();
-    // render
-    update_palette();
-    update_css_vars();
-    update_all_rule_els();
-    update_play_pattern_el();
-}
-
-init_starter_project();
-
+init_starter_project(render_callback); // load and render default rules and play pattern.
 render_menu_buttons();
 update_action_buttons();
 set_true_vh();
-
 
 
 // permanent window/ main DOM/ document event listeners
@@ -44,7 +39,7 @@ document.addEventListener("keydown", (e) => {
         if (!binding.keys) continue;
         if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
             e.preventDefault();
-            do_action(binding.action, binding.id);
+            do_action(binding.action, binding.id, render_callback);
             break;
         }
     }
@@ -94,7 +89,11 @@ RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
     update_action_buttons();
 });
 
-function get_new_sel(el) { // used above to get selection info from the event target
+/**
+ * @param {Element} el - element that was clicked
+ * @returns {Selection}
+ */
+function get_new_sel(el) {
     const rule = el.closest(".rule");
     const part = el.closest(".rule-part");
     const pattern = el.closest(".pattern-wrap");
@@ -116,7 +115,7 @@ function get_new_sel(el) { // used above to get selection info from the event ta
 
 SCREEN_CONTAINER_EL.addEventListener("pointerup", (e) => {
     if (UI_STATE.is_drawing) {
-        finish_drawing();
+        finish_drawing(render_callback);
         return;
     }
 
@@ -135,9 +134,9 @@ SCREEN_CONTAINER_EL.addEventListener("pointerup", (e) => {
 });
 
 // stop gestures when leaving
-window.addEventListener("blur", () => finish_drawing);
-window.addEventListener("pointercancel", () => finish_drawing);
-window.addEventListener("pointerup", () => finish_drawing);
+window.addEventListener("blur", () => finish_drawing(render_callback));
+window.addEventListener("pointercancel", () => finish_drawing(render_callback));
+window.addEventListener("pointerup", () => finish_drawing(render_callback));
 
 // drag files on window to load
 window.addEventListener("dragover", (e) => {
@@ -160,6 +159,56 @@ function set_true_vh() {
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
     document.documentElement.style.setProperty('--vh-100', `${vh * 100}px`);
+}
+
+const NEW_PROJECT_DIALOG_EL = document.getElementById("new-project-dialog");
+NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
+    if (NEW_PROJECT_DIALOG_EL.returnValue === "ok") {
+        // use the new tile size from the input
+        const new_tile_size = +document.getElementById("tile-size-input").value;
+        if (isNaN(new_tile_size) || new_tile_size < 1) {
+            alert("Invalid tile size. Please enter a positive number.");
+            return;
+        }
+        OPTIONS.default_tile_size = new_tile_size;
+        // TODO: add palette input.
+
+        save_options();
+
+        // reset the project
+        clear_project_obj();
+        clear_undo_stack();
+        init_starter_project(render_callback);
+    }
+});
+
+/**
+ * @callback render_callback
+ * @param {"selection" | "play" | "rules"} change_type
+ * @param {{ rule_id?: number, old_sel?: object, new_sel?: object }} data
+ * @returns {void}
+ */
+
+/** @type {render_callback} */
+function render_callback(change_type, data) {
+    // call various functions depending on the action taken.
+    // pass to the action functions so they can call this function when needed.
+
+    if (change_type === "selection") {
+        const { old_sel, new_sel } = data;
+        update_selected_els(old_sel, new_sel);
+        update_action_buttons();
+
+    } else if (change_type === "play") {
+        update_play_pattern_el();
+
+    } else if (change_type === "rules") {
+        if (data && data.rule_id) {
+            update_rule_el_by_id(data.rule_id); 
+            return;
+        } 
+        update_all_rule_els();
+    }
 }
 
 
@@ -188,7 +237,7 @@ function render_menu_buttons() {
         btn.title = (keys) ? "Hotkey: " + prettify_hotkey_names(keys) : "No hotkey"; // tooltip
         btn.className = "action-button";
         btn.classList.add(id ? "action-" + id : "action-button");
-        btn.addEventListener("click", () => { do_action(action, id); });
+        btn.addEventListener("click", () => { do_action(action, id, render_callback); });
         ACTIONS_CONTAINER_EL.appendChild(btn);
     });
 
@@ -247,17 +296,20 @@ function update_tool_buttons(group, index) {
 
 function update_action_buttons() {
     const sel_type = PROJECT.selected.type;
+    const visibility = ACTION_BUTTON_VISIBILITY;
 
     // show all first
     ACTIONS_CONTAINER_EL.querySelectorAll(".action-button").forEach(b => b.classList.remove("hidden"));
 
     // go through IDs
     ACTIONS.forEach(({id}) => {
-        if (sel_type === 'play' && ACTIONS_HIDDEN_WHEN_PLAY_SELECTED.includes(id)) {
+        if (sel_type === 'play' && visibility.hide_when_play_selected.includes(id)) {
             ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
-        } else if (sel_type === null && !ACTIONS_SHOWN_WHEN_NOTHING_SELECTED.includes(id)) {
+
+        } else if (sel_type === null && !visibility.show_when_nothing_selected.includes(id)) {
             ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
-        } else if (sel_type && sel_type !== 'play' && ACTIONS_HIDDEN_WHEN_RULE_SELECTED.includes(id)) {
+
+        } else if (sel_type && sel_type !== 'play' && visibility.hide_when_rule_selected.includes(id)) {
             ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
         }
     });
@@ -269,6 +321,39 @@ function update_action_buttons() {
     ACTIONS_CONTAINER_EL.querySelector(`.action-undo`).textContent = undo_button_text;
 }
 
+/**
+ * get the palette color for a value - default to magenta if not found.
+ * @param {number} value - the value to convert to a color
+ * @returns {string} - the color as a css color string
+ */
+function value_to_color(value) { 
+    if (value === -1) return "transparent"; // wildcard
+    return PROJECT.palette[value] || "magenta";
+}
+
+/**
+ * @param {Pattern} pattern - the pattern to draw
+ * @param {HTMLCanvasElement} canvas - the canvas to draw on
+ * @returns {void}
+ */
+function draw_pattern_to_canvas(pattern, canvas) {
+    const scale = OPTIONS.pixel_scale;
+    canvas.width = pattern.width * scale;
+    canvas.height = pattern.height * scale;
+    const ctx = canvas.getContext("2d");
+    for (let y = 0; y < pattern.height; y++) {
+        for (let x = 0; x < pattern.width; x++) {
+            const value = (pattern.pixels[y] !== undefined) ? pattern.pixels[y][x] : null;
+            ctx.fillStyle = value_to_color(value);
+            ctx.fillRect(x * scale, y * scale, scale, scale);
+        }
+    }
+}
+
+/**
+ * @param {Rule} rule - the rule to create the element for
+ * @returns {HTMLDivElement} - the rule element
+ */
 function create_rule_el(rule) {
     const ruleEl = document.createElement("div");
     ruleEl.className = "rule";
@@ -360,6 +445,11 @@ function create_rule_el(rule) {
     return ruleEl;
 }
 
+/**
+ * @param {Pattern} pattern - the pattern to create the editor for
+ * @param {HTMLCanvasElement} canvas - the canvas to draw on
+ * @returns {HTMLDivElement} - the grid element
+ */
 function create_pattern_editor_el(pattern, canvas) {
     const grid = document.createElement("div");
     grid.className = "grid";
@@ -482,6 +572,12 @@ function update_play_pattern_el() {
     // console.log("Rendered play pattern");
 }
 
+/**
+ * Render elements again that lost or gained selection.
+ * @param {Selection} old_sel - the old selection to update
+ * @param {Selection} new_sel - the new selection to update
+ * @returns {void}
+ */
 function update_selected_els(old_sel, new_sel) {
     // re-render play pattern
     if (old_sel.type === 'play' || new_sel.type === 'play') update_play_pattern_el();
@@ -496,6 +592,11 @@ function update_selected_els(old_sel, new_sel) {
     }
 }
 
+/**
+ * @param {Selection} a - first selection to compare
+ * @param {Selection} b - second selection to compare
+ * @returns {boolean} - true if the selections are equal, false otherwise
+ */
 function selections_equal(a, b) {
     if (a.type !== b.type) return false;
     if (!a.paths.length && !b.paths.length) return true; // both empty
@@ -511,6 +612,11 @@ function selections_equal(a, b) {
     return true;
 }
 
+/**
+ * @param {Selection} base_sel - the base selection to modify
+ * @param {Selection} new_sel - the new selection to toggle
+ * @returns {Selection} - the modified base selection
+ */
 function toggle_in_selection(base_sel, new_sel) {
     // go through base_sel and modify and return it.
     // assume that new_sel is a single path.

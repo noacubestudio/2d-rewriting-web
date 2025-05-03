@@ -1,32 +1,17 @@
-// init rules
+import { PROJECT, generate_id } from "./global.js";
 
-function set_default_rules() {
-    PROJECT.rules.push({
-        id: generate_id('rule'),
-        parts: [
-            {
-                id: generate_id('part'),
-                patterns: [blank_pattern(), blank_pattern()]
-            },
-        ]
-    });
-    // add dot to the second pattern
-    const middle_coord = Math.floor(PROJECT.tile_size / 2);
-    PROJECT.rules[0].parts[0].patterns[1].pixels[middle_coord][middle_coord] = 1;
-}
+import { rotate_pattern, resize_pattern, shift_pattern, flip_pattern } from "./edit-pattern.js";
 
-function blank_pattern(w = PROJECT.tile_size, h = PROJECT.tile_size) {
+/** @typedef {import('./global.js').Selection} Selection */
+
+
+export function get_blank_pattern(w = PROJECT.tile_size, h = PROJECT.tile_size) {
     return {
         id: generate_id('pat'),
         width: w, 
         height: h,
         pixels: Array.from({ length: h }, () => Array(w).fill(0))
     };
-}
-
-function generate_id(prefix = "id") {
-    // use the date and a counter (stored in PROJECT.rules) to generate a unique id
-    return `${prefix}_${Date.now().toString(36)}_${(PROJECT.editor_obj_id_counter++).toString(36)}`;
 }
 
 // refresh ids when a rule is duplicated
@@ -51,6 +36,7 @@ function deep_clone_with_ids(obj) {
 }
 
 // selection ids -> rule, part, pattern objects
+/** @param {Selection} sel */
 function get_selected_rule_objects(sel) {
     const object_groups = [];
     sel.paths.forEach(path => {
@@ -65,7 +51,8 @@ function get_selected_rule_objects(sel) {
 }
 
 // selection ids -> selected pattern objects
-function get_selected_rule_patterns(sel) {
+/** @param {Selection} sel */
+export function get_selected_rule_patterns(sel) {
     const found_patterns = new Set();
     const object_groups = get_selected_rule_objects(sel);
 
@@ -81,13 +68,6 @@ function get_selected_rule_patterns(sel) {
     return [...found_patterns];
 }
 
-// actual rule object -> all patterns in the rule
-function get_rule_patterns(rule) {
-    const result = [];
-    rule.parts.forEach(p => p.patterns.forEach(pat => result.push(pat)));
-    return result;
-}
-
 function keep_rules_valid() {
     // after rules move around, make sure they stay valid.
 
@@ -95,12 +75,20 @@ function keep_rules_valid() {
 }
 
 
-// functions that modify the state of the rules and play_pattern, usually based on the selected objects.
-// called from actions.js, they return:
-// - new_selected (like PROJECT.selected) to be set in the state
-// - render_ids ([] of rule_id) or render_play (bool) to be rendered.
 
-function duplicate_selection(sel) {
+// functions that modify the state of the rules and play_pattern, usually based on the selected objects.
+
+/** @typedef {Object} Selection_Edit_Output
+ * @property {Selection} new_selected - new selection object to be set in the state
+ * @property {Set<string>} render_ids - set of rule ids to be rendered
+ * @property {boolean} render_play - whether to render the play pattern
+*/
+
+/** 
+ * @param {Selection} sel 
+ * @returns {Selection_Edit_Output}
+*/
+export function duplicate_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
@@ -136,7 +124,11 @@ function duplicate_selection(sel) {
     return output;
 }
 
-function delete_selection(sel) {
+/** 
+ * @param {Selection} sel 
+ * @returns {Selection_Edit_Output}
+*/
+export function delete_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
@@ -199,7 +191,12 @@ function delete_selection(sel) {
     return output;
 }
 
-function reorder_selection(sel, direction) {
+/** 
+ * @param {Selection} sel 
+ * @param {number} direction
+ * @returns {Selection_Edit_Output}
+*/
+export function reorder_selection(sel, direction) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
@@ -237,7 +234,11 @@ function reorder_selection(sel, direction) {
     return output;
 }
 
-function clear_selection(sel) {
+/** 
+ * @param {Selection} sel 
+ * @returns {Selection_Edit_Output}
+*/
+export function clear_selection(sel) {
     if (sel.type === null) return;
 
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
@@ -260,7 +261,7 @@ function clear_selection(sel) {
     } else if (sel.type === 'part') {
         object_groups.forEach(({ rule, part }) => {
             // reset part to initial state
-            part.patterns = [blank_pattern(), blank_pattern()];
+            part.patterns = [get_blank_pattern(), get_blank_pattern()];
             output.render_ids.add(rule.id);
         });
     } else if (sel.type === 'rule') {
@@ -268,7 +269,7 @@ function clear_selection(sel) {
             // reset rule to initial state
             rule.parts = [{
                 id: generate_id('part'),
-                patterns: [blank_pattern(), blank_pattern()]
+                patterns: [get_blank_pattern(), get_blank_pattern()]
             }];
             output.render_ids.add(rule.id);
         });
@@ -276,10 +277,12 @@ function clear_selection(sel) {
     return output;
 }
 
-
-// flags
-
-function toggle_rule_flag(sel, flag) {
+/** 
+ * @param {Selection} sel 
+ * @param {string} flag
+ * @returns {Selection_Edit_Output}
+*/
+export function toggle_rule_flag(sel, flag) {
     if (sel.type === null || sel.type === 'play') return;
 
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
@@ -293,10 +296,11 @@ function toggle_rule_flag(sel, flag) {
     if (output.render_ids.size) return output;
 }
 
-
-// patterns
-
-function rotate_patterns_in_selection(sel) {
+/** 
+ * @param {Selection} sel 
+ * @returns {Selection_Edit_Output}
+*/
+export function rotate_patterns_in_selection(sel) {
     if (sel.type === null) return;
 
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
@@ -330,7 +334,13 @@ function rotate_patterns_in_selection(sel) {
     }
 }
 
-function resize_patterns_in_selection(sel, x_direction, y_direction) {
+/** 
+ * @param {Selection} sel 
+ * @param {number} x_direction
+ * @param {number} y_direction
+ * @returns {Selection_Edit_Output}
+*/
+export function resize_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
@@ -367,7 +377,13 @@ function resize_patterns_in_selection(sel, x_direction, y_direction) {
     }
 }
 
-function shift_patterns_in_selection(sel, x_direction, y_direction) {
+/** 
+ * @param {Selection} sel 
+ * @param {number} x_direction
+ * @param {number} y_direction
+ * @returns {Selection_Edit_Output}
+*/
+export function shift_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
@@ -389,7 +405,13 @@ function shift_patterns_in_selection(sel, x_direction, y_direction) {
     }
 }
 
-function flip_patterns_in_selection(sel, h_bool, v_bool) {
+/**
+ * @param {Selection} sel 
+ * @param {boolean} h_bool - horizontal flip
+ * @param {boolean} v_bool - vertical flip
+ * @returns {Selection_Edit_Output}
+*/
+export function flip_patterns_in_selection(sel, h_bool, v_bool) {
     if (sel.type === null) return;
 
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
@@ -413,126 +435,4 @@ function flip_patterns_in_selection(sel, h_bool, v_bool) {
         });
         return output;
     }
-}
-
-
-// Pattern manipulation functions
-
-function draw_in_pattern(pattern, x, y, tool, ui_state) {
-    if (!pattern) return;
-    if (x < 0 || x >= pattern.width || y < 0 || y >= pattern.height) return;
-
-    if (tool === 'brush') {
-        pattern.pixels[y][x] = ui_state.draw_value;
-        return;
-    }
-
-    if (tool === 'rect') {
-        const fromX = Math.min(ui_state.draw_start_x, x);
-        const fromY = Math.min(ui_state.draw_start_y, y);
-        const toX   = Math.max(ui_state.draw_start_x, x);
-        const toY   = Math.max(ui_state.draw_start_y, y);
-
-        for (let row = fromY; row <= toY; row++) {
-            for (let col = fromX; col <= toX; col++) {
-                pattern.pixels[row][col] = ui_state.draw_value;
-            }
-        }
-        return;
-    }
-
-    if (tool === 'line') {
-        let fromX = ui_state.draw_start_x;
-        let fromY = ui_state.draw_start_y;
-        const toX = x;
-        const toY = y;
-
-        const dx = Math.abs(toX - fromX);
-        const dy = Math.abs(toY - fromY);
-        const sx = (fromX < toX) ? 1 : -1;
-        const sy = (fromY < toY) ? 1 : -1;
-        let err = dx - dy;
-
-        while (true) {
-            pattern.pixels[fromY][fromX] = ui_state.draw_value;
-            if (fromX === toX && fromY === toY) break;
-            const err2 = err * 2;
-            if (err2 > -dy) { err -= dy; fromX += sx; }
-            if (err2 < dx)  { err += dx; fromY += sy; }
-        }
-        return;
-    }
-
-    if (tool === 'fill') {
-        const target_color = pattern.pixels[y][x];
-        if (target_color === ui_state.draw_value) return;
-
-        const stack = [[x, y]];
-        while (stack.length > 0) {
-            const [px, py] = stack.pop();
-            if (px < 0 || px >= pattern.width || py < 0 || py >= pattern.height) continue;
-            if (pattern.pixels[py][px] !== target_color) continue;
-            pattern.pixels[py][px] = ui_state.draw_value;
-            stack.push([px + 1, py]);
-            stack.push([px - 1, py]);
-            stack.push([px, py + 1]);
-            stack.push([px, py - 1]);
-        }
-    }
-}
-
-function rotate_pattern(pattern, times = 1) {
-    for (let i = 0; i < times; i++) {
-        const new_pixels = pattern.pixels[0].map((_, index) => pattern.pixels.map(row => row[index]).reverse());
-        pattern.pixels = new_pixels;
-    }
-    pattern.width = pattern.pixels[0].length;
-    pattern.height = pattern.pixels.length;
-}
-
-function resize_pattern(pattern, new_width, new_height, fill = 0) {
-    const old_pixels = pattern.pixels;
-    const old_height = old_pixels.length;
-    const old_width = old_pixels[0]?.length || 0;
-
-    const new_pixels = Array.from({ length: new_height }, (_, y) =>
-        Array.from({ length: new_width }, (_, x) =>
-            (y < old_height && x < old_width) ? old_pixels[y][x] : fill
-        )
-    );
-
-    pattern.width = new_width;
-    pattern.height = new_height;
-    pattern.pixels = new_pixels;
-}
-
-function shift_pattern(pattern, x_direction, y_direction) {
-    if (y_direction !== 0) {
-        const new_pixels = Array.from({ length: pattern.height }, () => Array(pattern.width).fill(0));
-        for (let y = 0; y < pattern.height; y++) {
-            const new_y = (y + y_direction + pattern.height) % pattern.height;
-            new_pixels[new_y] = pattern.pixels[y];
-        }
-        pattern.pixels = new_pixels;
-    }
-    if (x_direction !== 0) {
-        const new_pixels = pattern.pixels.map(row => Array.from({ length: pattern.width }, () => 0));
-        for (let y = 0; y < pattern.height; y++) {
-            for (let x = 0; x < pattern.width; x++) {
-                const new_x = (x + x_direction + pattern.width) % pattern.width;
-                new_pixels[y][new_x] = pattern.pixels[y][x];
-            }
-        }
-        pattern.pixels = new_pixels;
-    }
-}
-
-function flip_pattern(pattern, horizontal = true) {
-    if (horizontal) {
-        pattern.pixels = pattern.pixels.map(row => row.reverse());
-    } else {
-        pattern.pixels.reverse();
-    }
-    pattern.width = pattern.pixels[0].length;
-    pattern.height = pattern.pixels.length;
 }
