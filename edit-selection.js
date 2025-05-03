@@ -1,25 +1,25 @@
-import { PROJECT, generate_id } from "./global.js";
+// @ts-check
+
+import { PROJECT, generate_id, get_blank_pattern } from "./global.js";
 
 import { rotate_pattern, resize_pattern, shift_pattern, flip_pattern } from "./edit-pattern.js";
 
 /** @typedef {import('./global.js').Selection} Selection */
+/** @typedef {import('./global.js').Rule} Rule */
+/** @typedef {import('./global.js').Part} Part */
+/** @typedef {import('./global.js').Pattern} Pattern */
+/** @typedef {import('./global.js').Rule_Flag_Key} Rule_Flag_Key */
 
 
-export function get_blank_pattern(w = PROJECT.tile_size, h = PROJECT.tile_size) {
-    return {
-        id: generate_id('pat'),
-        width: w, 
-        height: h,
-        pixels: Array.from({ length: h }, () => Array(w).fill(0))
-    };
-}
-
-// refresh ids when a rule is duplicated
+/**
+ * Refresh ids when a rule is duplicated
+ * @template T
+ * @param {T} obj - The object to clone
+ * @returns {T} - The cloned object with updated ids
+ */
 function deep_clone_with_ids(obj) {
-    if (Array.isArray(obj)) {
-        return obj.map(deep_clone_with_ids);
-    } else if (obj && typeof obj === 'object') {
-        const copy = {};
+    if (obj && typeof obj === 'object' && 'id' in obj) {
+        const copy = {id: ""};
         for (const key in obj) {
             copy[key] = deep_clone_with_ids(obj[key]);
         }
@@ -30,14 +30,17 @@ function deep_clone_with_ids(obj) {
         } else if ("parts" in copy) {
             copy.id = generate_id("rule");
         }
+        // @ts-ignore
         return copy;
     }
     return obj;
 }
 
-// selection ids -> rule, part, pattern objects
-/** @param {Selection} sel */
-function get_selected_rule_objects(sel) {
+/** 
+ * @param {Selection} sel 
+ * @returns {{ rule: Rule, part: Part | null, pattern: Pattern | null }[]}
+ */
+export function get_selected_rule_objects(sel) {
     const object_groups = [];
     sel.paths.forEach(path => {
         const rule = PROJECT.rules.find(r => r.id === path.rule_id);
@@ -50,8 +53,10 @@ function get_selected_rule_objects(sel) {
     return object_groups;
 }
 
-// selection ids -> selected pattern objects
-/** @param {Selection} sel */
+/** 
+ * @param {Selection} sel 
+ * @returns {Pattern[]}
+ */
 export function get_selected_rule_patterns(sel) {
     const found_patterns = new Set();
     const object_groups = get_selected_rule_objects(sel);
@@ -68,17 +73,19 @@ export function get_selected_rule_patterns(sel) {
     return [...found_patterns];
 }
 
+// after rules move around, make sure they stay valid.
 function keep_rules_valid() {
-    // after rules move around, make sure they stay valid.
-
-    PROJECT.rules[0].part_of_group = false; // first rule is never part of a group
+    // first rule is never part of a group
+    PROJECT.rules[0].part_of_group = false;
 }
 
 
 
 // functions that modify the state of the rules and play_pattern, usually based on the selected objects.
 
-/** @typedef {Object} Selection_Edit_Output
+/**
+ * Returns updated selection and information about what to render.
+ * @typedef {Object} Selection_Edit_Output
  * @property {Selection} new_selected - new selection object to be set in the state
  * @property {Set<string>} render_ids - set of rule ids to be rendered
  * @property {boolean} render_play - whether to render the play pattern
@@ -86,7 +93,7 @@ function keep_rules_valid() {
 
 /** 
  * @param {Selection} sel 
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function duplicate_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
@@ -97,6 +104,7 @@ export function duplicate_selection(sel) {
 
     if (sel.type === 'pattern') {
         object_groups.forEach(({ rule, part, pattern }) => {
+            if (!part || !pattern) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             const insert_index = part.patterns.findIndex(p => p.id === pattern.id) + 1;
             const new_pattern = deep_clone_with_ids(pattern);
             part.patterns.splice(insert_index, 0, new_pattern);
@@ -105,6 +113,7 @@ export function duplicate_selection(sel) {
         });
     } else if (sel.type === 'part') {
         object_groups.forEach(({ rule, part }) => {
+            if (!part) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             const insert_index = rule.parts.findIndex(p => p.id === part.id) + 1;
             const new_part = deep_clone_with_ids(part);
             rule.parts.splice(insert_index, 0, new_part);
@@ -126,7 +135,7 @@ export function duplicate_selection(sel) {
 
 /** 
  * @param {Selection} sel 
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function delete_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
@@ -142,6 +151,7 @@ export function delete_selection(sel) {
 
     if (sel.type === 'pattern') {
         object_groups.forEach(({ rule, part, pattern }) => {
+            if (!part || !pattern) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             const index = part.patterns.findIndex(p => p.id === pattern.id);
             const sel_path = { rule_id: rule.id, part_id: part.id, pattern_id: pattern.id };
             if (part.patterns.length <= 1) { // keep at least 1 pattern
@@ -157,6 +167,7 @@ export function delete_selection(sel) {
         });
     } else if (sel.type === 'part') {
         object_groups.forEach(({ rule, part }) => {
+            if (!part) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             const index = rule.parts.findIndex(p => p.id === part.id);
             const sel_path = { rule_id: rule.id, part_id: part.id };
             if (rule.parts.length <= 1) { // keep at least 1 part
@@ -194,7 +205,7 @@ export function delete_selection(sel) {
 /** 
  * @param {Selection} sel 
  * @param {number} direction
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function reorder_selection(sel, direction) {
     if (sel.type === null || sel.type === 'play') return;
@@ -206,6 +217,7 @@ export function reorder_selection(sel, direction) {
 
     if (sel.type === 'pattern') {
         object_groups.forEach(({ rule, part, pattern }) => {
+            if (!part || !pattern) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             const index = part.patterns.findIndex(p => p.id === pattern.id);
             const target = index + direction;
             if (target < 0 || target >= part.patterns.length) return;
@@ -214,6 +226,7 @@ export function reorder_selection(sel, direction) {
         });
     } else if (sel.type === 'part') {
         object_groups.forEach(({ rule, part }) => {
+            if (!part) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             const index = rule.parts.findIndex(p => p.id === part.id);
             const target = index + direction;
             if (target < 0 || target >= rule.parts.length) return;
@@ -236,7 +249,7 @@ export function reorder_selection(sel, direction) {
 
 /** 
  * @param {Selection} sel 
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function clear_selection(sel) {
     if (sel.type === null) return;
@@ -254,12 +267,14 @@ export function clear_selection(sel) {
     
     if (sel.type === 'pattern') {
         object_groups.forEach(({ rule, part, pattern }) => {
+            if (!part || !pattern) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             // reset pattern to empty
             pattern.pixels = Array.from({ length: pattern.height }, () => Array(pattern.width).fill(0));
             output.render_ids.add(rule.id);
         });
     } else if (sel.type === 'part') {
         object_groups.forEach(({ rule, part }) => {
+            if (!part) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
             // reset part to initial state
             part.patterns = [get_blank_pattern(), get_blank_pattern()];
             output.render_ids.add(rule.id);
@@ -278,9 +293,9 @@ export function clear_selection(sel) {
 }
 
 /** 
- * @param {Selection} sel 
- * @param {string} flag
- * @returns {Selection_Edit_Output}
+ * @param {Selection} sel
+ * @param {Rule_Flag_Key} flag - flag to toggle
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function toggle_rule_flag(sel, flag) {
     if (sel.type === null || sel.type === 'play') return;
@@ -298,7 +313,7 @@ export function toggle_rule_flag(sel, flag) {
 
 /** 
  * @param {Selection} sel 
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function rotate_patterns_in_selection(sel) {
     if (sel.type === null) return;
@@ -338,7 +353,7 @@ export function rotate_patterns_in_selection(sel) {
  * @param {Selection} sel 
  * @param {number} x_direction
  * @param {number} y_direction
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function resize_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
@@ -381,7 +396,7 @@ export function resize_patterns_in_selection(sel, x_direction, y_direction) {
  * @param {Selection} sel 
  * @param {number} x_direction
  * @param {number} y_direction
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function shift_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
@@ -409,7 +424,7 @@ export function shift_patterns_in_selection(sel, x_direction, y_direction) {
  * @param {Selection} sel 
  * @param {boolean} h_bool - horizontal flip
  * @param {boolean} v_bool - vertical flip
- * @returns {Selection_Edit_Output}
+ * @returns {Selection_Edit_Output | undefined}
 */
 export function flip_patterns_in_selection(sel, h_bool, v_bool) {
     if (sel.type === null) return;

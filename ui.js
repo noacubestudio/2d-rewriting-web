@@ -1,10 +1,14 @@
-import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./global.js";
-import { clear_project_obj, clear_undo_stack } from "./global.js";
+// @ts-check
 
-import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options } from "./actions.js";
+import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./global.js";
+import { clear_project_obj, clear_undo_stack, selections_equal } from "./global.js";
+
+import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project } from "./actions.js";
 import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
 
 /** @typedef {import('./global.js').Selection} Selection */
+/** @typedef {import('./global.js').Rule} Rule */
+/** @typedef {import('./global.js').Pattern} Pattern */
 
 
 const RULES_CONTAINER_EL = document.getElementById("rules-container");
@@ -26,7 +30,8 @@ set_true_vh();
 // keyboard shortcuts
 document.addEventListener("keydown", (e) => {
     if (UI_STATE.is_drawing) return; // ignore key events while drawing
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return; // ignore key events in inputs
+    const target = /** @type {HTMLElement} */ (e.target);
+    if (["INPUT", "TEXTAREA"].includes(target.tagName)) return; // ignore key events in inputs
 
     const pressed = new Set([
         e.key,
@@ -58,17 +63,18 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
+if (RULES_CONTAINER_EL) RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
     if (UI_STATE.is_drawing) {
-        finish_drawing();
+        finish_drawing(render_callback);
         return;
     }
-
-    if (e.target.tagName === "INPUT") return; // comment input does not change selection
+    const target = /** @type {HTMLElement} */ (e.target);
+    if (!target) return;
+    if (target.tagName === "INPUT") return; // comment input does not change selection
 
     // select rules, parts or patterns.
     const old_sel = structuredClone(PROJECT.selected);
-    const new_sel = get_new_sel(e.target);
+    const new_sel = get_new_sel(target);
     
     const ctrl_held = e.ctrlKey || e.metaKey; // MacOS
     if (ctrl_held) {
@@ -90,39 +96,44 @@ RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
 });
 
 /**
- * @param {Element} el - element that was clicked
+ * @param {HTMLElement} el - element that was clicked
  * @returns {Selection}
  */
 function get_new_sel(el) {
-    const rule = el.closest(".rule");
-    const part = el.closest(".rule-part");
-    const pattern = el.closest(".pattern-wrap");
-    if (pattern) {
-        return { type: 'pattern', paths: [{
-            rule_id: rule?.dataset.id, part_id: part?.dataset.id, pattern_id: pattern?.dataset.id
-        }]}
-    } else if (part) {
-        return { type: 'part', paths: [{
-            rule_id: rule?.dataset.id, part_id: part?.dataset.id
-        }]}
-    } else if (rule) {
-        return { type: 'rule', paths: [{
-            rule_id: rule?.dataset.id
-        }]}
-    }
-    return { type: null, paths: [] };
+    const rule    = /** @type {HTMLElement} */ (el.closest(".rule"));
+    const part    = /** @type {HTMLElement} */ (el.closest(".rule-part"));
+    const pattern = /** @type {HTMLElement} */ (el.closest(".pattern-wrap"));
+
+    if (!rule.dataset.id) return { type: null, paths: [] }; // no rule selected
+
+    if (!part.dataset.id) return { type: 'rule', paths: [{ // no part selected, is rule
+        rule_id: rule.dataset.id
+    }]};
+
+    if (!pattern.dataset.id) return { type: 'part', paths: [{ // no pattern selected, is part
+        rule_id: rule.dataset.id,
+        part_id: part.dataset.id
+    }]};
+
+    return { type: 'pattern', paths: [{ // pattern selected
+        rule_id: rule.dataset.id,
+        part_id: part.dataset.id,
+        pattern_id: pattern.dataset.id
+    }]};
 }
 
-SCREEN_CONTAINER_EL.addEventListener("pointerup", (e) => {
+if (SCREEN_CONTAINER_EL) SCREEN_CONTAINER_EL.addEventListener("pointerup", (e) => {
     if (UI_STATE.is_drawing) {
         finish_drawing(render_callback);
         return;
     }
+    const target = /** @type {HTMLElement} */ (e.target);
 
     // select or deselect play pattern.
     const old_sel = structuredClone(PROJECT.selected);
+    /** @type {Selection} */
     const new_sel = { 
-        type: (e.target.closest(".screen-wrap") ? 'play' : null), 
+        type: (target.closest(".screen-wrap") ? 'play' : null), 
         paths: [] 
     }; 
     const same = selections_equal(old_sel, new_sel);
@@ -141,13 +152,13 @@ window.addEventListener("pointerup", () => finish_drawing(render_callback));
 // drag files on window to load
 window.addEventListener("dragover", (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
 });
 window.addEventListener("drop", (e) => {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
+    const file = (e.dataTransfer) ? e.dataTransfer.files[0] : null;
     if (file && file.type === "application/json") {
-        load_project(file);
+        load_project(file, render_callback);
     } else {
         alert("Please drop a valid JSON file.");
     }
@@ -161,11 +172,15 @@ function set_true_vh() {
     document.documentElement.style.setProperty('--vh-100', `${vh * 100}px`);
 }
 
-const NEW_PROJECT_DIALOG_EL = document.getElementById("new-project-dialog");
-NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
+/** @type {HTMLDialogElement} */
+const NEW_PROJECT_DIALOG_EL = /** @type {any} */(document.getElementById("new-project-dialog"));
+
+if (NEW_PROJECT_DIALOG_EL) NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
     if (NEW_PROJECT_DIALOG_EL.returnValue === "ok") {
         // use the new tile size from the input
-        const new_tile_size = +document.getElementById("tile-size-input").value;
+        const tile_size_input = /** @type {HTMLInputElement} */ (document.getElementById("tile-size-input"));
+        if (!tile_size_input) throw new Error("No tile size input found");
+        const new_tile_size = +tile_size_input.value;
         if (isNaN(new_tile_size) || new_tile_size < 1) {
             alert("Invalid tile size. Please enter a positive number.");
             return;
@@ -185,7 +200,7 @@ NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
 /**
  * @callback render_callback
  * @param {"selection" | "play" | "rules"} change_type
- * @param {{ rule_id?: number, old_sel?: object, new_sel?: object }} data
+ * @param {{ rule_id?: number, old_sel?: object, new_sel?: object } | null} data
  * @returns {void}
  */
 
@@ -194,7 +209,7 @@ function render_callback(change_type, data) {
     // call various functions depending on the action taken.
     // pass to the action functions so they can call this function when needed.
 
-    if (change_type === "selection") {
+    if (change_type === "selection" && data && data.new_sel && data.old_sel) {
         const { old_sel, new_sel } = data;
         update_selected_els(old_sel, new_sel);
         update_action_buttons();
@@ -208,6 +223,9 @@ function render_callback(change_type, data) {
             return;
         } 
         update_all_rule_els();
+
+    } else {
+        console.warn("Unknown change type:", change_type, data);
     }
 }
 
@@ -229,6 +247,9 @@ function render_menu_buttons() {
             }
         }).join(" + ");
     }
+
+    if (!ACTIONS_CONTAINER_EL) throw new Error("No actions container found");
+    if (!TOOL_SETTINGS_CONTAINER_EL) throw new Error("No tool settings container found");
 
     ACTIONS.forEach(({hint, action, id, keys}) => {
         if (!hint) return; // skip
@@ -258,7 +279,7 @@ function render_menu_buttons() {
             const btn = document.createElement("button");
             btn.className = "tool-button";
             btn.dataset.group = group;
-            btn.dataset.option_index = i;
+            btn.dataset.option_index = i.toString();
             if (value === OPTIONS[option_key]) btn.classList.add("active"); // initially active button
             if (group === "colors") {
                 btn.classList.add("color-button");
@@ -283,10 +304,16 @@ function render_menu_buttons() {
     });
 }
 
+/**
+ * @param {string} group - the group of buttons to update
+ * @param {number} index - the index of the button to set active
+ */
 function update_tool_buttons(group, index) {
+    if (!TOOL_SETTINGS_CONTAINER_EL) throw new Error("No tool settings container found");
+    /** @type {NodeListOf<HTMLElement>} */
     const btns_in_group = TOOL_SETTINGS_CONTAINER_EL.querySelectorAll(`button[data-group="${group}"]`);
     btns_in_group.forEach(b => {
-        if (b.dataset.option_index == index) {
+        if (b.dataset.option_index === index.toString()) {
             b.classList.add("active")
         } else {
             b.classList.remove("active")
@@ -295,6 +322,8 @@ function update_tool_buttons(group, index) {
 }
 
 function update_action_buttons() {
+    if (!ACTIONS_CONTAINER_EL) throw new Error("No actions container found");
+
     const sel_type = PROJECT.selected.type;
     const visibility = ACTION_BUTTON_VISIBILITY;
 
@@ -315,20 +344,23 @@ function update_action_buttons() {
     });
 
     // some actions change based on selection
-    const last_sel_type = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
-    const show_play = sel_type === 'play' || (sel_type === null && last_sel_type === 'play_pattern');
-    const undo_button_text = "♻️ Undo " + (show_play ? "(Main Grid)" : "(Rule Editor)");
-    ACTIONS_CONTAINER_EL.querySelector(`.action-undo`).textContent = undo_button_text;
+    const undo_button = ACTIONS_CONTAINER_EL.querySelector(`.action-undo`);
+    if (undo_button) {
+        const last_sel_type = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
+        const show_play = sel_type === 'play' || (sel_type === null && last_sel_type === "play");
+        undo_button.textContent = "♻️ Undo " + (show_play ? "(Main Grid)" : "(Rule Editor)");
+    }
 }
 
 /**
  * get the palette color for a value - default to magenta if not found.
- * @param {number} value - the value to convert to a color
+ * @param {number | null} value - the value to convert to a color
  * @returns {string} - the color as a css color string
  */
 function value_to_color(value) { 
     if (value === -1) return "transparent"; // wildcard
-    return PROJECT.palette[value] || "magenta";
+    if (value === null || value >= PROJECT.palette.length) return "magenta"; // empty
+    return PROJECT.palette[value];
 }
 
 /**
@@ -341,6 +373,7 @@ function draw_pattern_to_canvas(pattern, canvas) {
     canvas.width = pattern.width * scale;
     canvas.height = pattern.height * scale;
     const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("No 2d context found for canvas");
     for (let y = 0; y < pattern.height; y++) {
         for (let x = 0; x < pattern.width; x++) {
             const value = (pattern.pixels[y] !== undefined) ? pattern.pixels[y][x] : null;
@@ -361,7 +394,7 @@ function create_rule_el(rule) {
 
     // rule label
     const rule_label = document.createElement("label");
-    let rule_label_text = rule.label || "?";
+    let rule_label_text = rule.label.toString() || "?";
     if (rule.rotate) {
         rule_label_text += "x4";
         ruleEl.classList.add("flag-rotate");
@@ -379,15 +412,19 @@ function create_rule_el(rule) {
     // comment
     if (rule.show_comment) {
         const rule_comment = document.createElement("input");
-        const ghost = document.getElementById('input-ghost');
         rule_comment.className = "rule-comment";
         rule_comment.value = rule.comment || "";
         rule_comment.placeholder = "Add a comment...";
         rule_comment.addEventListener("input", (e) => {
-            rule.comment = e.target.value;
+            const target = /** @type {HTMLInputElement} */ (e.target);
+            rule.comment = target.value;
             resize_input(rule_comment);
         });
+
+        /** @param {HTMLInputElement} input */
         function resize_input(input) {
+            const ghost = document.getElementById('input-ghost');
+            if (!ghost) throw new Error("No ghost input found");
             ghost.textContent = input.value || input.placeholder || " ";
             ghost.style.font = window.getComputedStyle(input).font;
             input.style.width = (ghost.scrollWidth + 16) + "px"; // padding
@@ -463,8 +500,8 @@ function create_pattern_editor_el(pattern, canvas) {
             const cell = document.createElement("div");
             cell.className = "pixel";
             // add data-x and data-y attributes
-            cell.dataset.x = x;
-            cell.dataset.y = y;
+            cell.dataset.x = x.toString();
+            cell.dataset.y = y.toString();
             grid.appendChild(cell);
         }
     }
@@ -473,8 +510,10 @@ function create_pattern_editor_el(pattern, canvas) {
         e.preventDefault();
 
         UI_STATE.is_drawing = true;
-        const cell = e.target;
-        if (cell.classList.contains("pixel")) {
+
+        const cell = /** @type {HTMLElement | null} */ (e.target);
+        if (cell && cell.classList.contains("pixel")) {
+            if (!cell.dataset.x || !cell.dataset.y) return;
             const x = +cell.dataset.x;
             const y = +cell.dataset.y;
             // setup, draw, render. could be multiple patterns at once.
@@ -486,8 +525,10 @@ function create_pattern_editor_el(pattern, canvas) {
 
     grid.addEventListener("pointermove", (e) => {
         if (!UI_STATE.is_drawing) return;
-        const cell = document.elementFromPoint(e.clientX, e.clientY);
-        if (cell.classList.contains("pixel")) {
+
+        const cell = /** @type {HTMLElement | null} */ (document.elementFromPoint(e.clientX, e.clientY));
+        if (cell && cell.classList.contains("pixel")) {
+            if (!cell.dataset.x || !cell.dataset.y) return;
             const x = +cell.dataset.x;
             const y = +cell.dataset.y;
             if (x === UI_STATE.draw_x && y === UI_STATE.draw_y) return; // no change
@@ -503,8 +544,10 @@ function create_pattern_editor_el(pattern, canvas) {
     return grid;
 }
 
+/** @param {Pattern[]} patterns - the patterns to draw */
 function draw_patterns_to_canvases(patterns) {
     patterns.forEach(p => {
+        /** @type {HTMLCanvasElement | null} */
         const canvas = document.querySelector(`.pattern-wrap[data-id="${p.id}"] canvas`);
         if (canvas) draw_pattern_to_canvas(p, canvas);
     });
@@ -527,6 +570,7 @@ function update_rule_highlight(sel_path, rule_el) {
 }
 
 function update_all_rule_els() {
+    if (!RULES_CONTAINER_EL) throw new Error("No rules container found");
     RULES_CONTAINER_EL.innerHTML = "";
     PROJECT.rules.forEach((rule, index) => {
         rule.label = index + 1;
@@ -537,6 +581,7 @@ function update_all_rule_els() {
 }
 
 function update_rule_el_by_id(rule_id) {
+    if (!RULES_CONTAINER_EL) throw new Error("No rules container found");
     const index = PROJECT.rules.findIndex(r => r.id === rule_id);
 
     // Remove existing DOM node
@@ -553,9 +598,12 @@ function update_rule_el_by_id(rule_id) {
 }
 
 function update_play_pattern_el() {
-    const canvas = document.getElementById("screen-canvas");
+    if (!SCREEN_CONTAINER_EL) throw new Error("No screen container found");
+    /** @type {HTMLCanvasElement | null} */
+    const canvas = /***/ (document.getElementById("screen-canvas"));
     const wrap_el = SCREEN_CONTAINER_EL.querySelector("#screen-container .screen-wrap");
     const pattern = PROJECT.play_pattern;
+    if (!canvas || !wrap_el) throw new Error("No screen canvas or wrap element found");
 
     canvas.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
     canvas.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
@@ -590,26 +638,6 @@ function update_selected_els(old_sel, new_sel) {
     for (const rule_id of all_rule_ids) {
         update_rule_el_by_id(rule_id);
     }
-}
-
-/**
- * @param {Selection} a - first selection to compare
- * @param {Selection} b - second selection to compare
- * @returns {boolean} - true if the selections are equal, false otherwise
- */
-function selections_equal(a, b) {
-    if (a.type !== b.type) return false;
-    if (!a.paths.length && !b.paths.length) return true; // both empty
-    if (a.paths.length !== b.paths.length) return false; // different length
-
-    for (let i = 0; i < a.paths.length; i++) {
-        const a_path = a.paths[i];
-        const b_path = b.paths[i];
-        if (a_path.rule_id !== b_path.rule_id) return false;
-        if (a_path.part_id !== b_path.part_id) return false;
-        if (a_path.pattern_id !== b_path.pattern_id) return false;
-    }
-    return true;
 }
 
 /**

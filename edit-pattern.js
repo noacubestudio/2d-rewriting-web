@@ -1,6 +1,9 @@
+// @ts-check
+
 /** @typedef {import('./global.js').Rule} Rule */
 /** @typedef {import('./global.js').Pattern} Pattern */
 /** @typedef {import('./global.js').UI_State} UI_State */
+/** @typedef {import('./global.js').Options} Options */
 
 // functions that just edit a pattern by drawing on it, applying a rule to it, rotating it, resizing it...
 
@@ -9,7 +12,7 @@
  * @param {Pattern} pattern - the pattern to draw on
  * @param {number} x - the x coordinate to draw at
  * @param {number} y - the y coordinate to draw at
- * @param {string} tool - the tool to use for drawing (brush, rect, line, fill)
+ * @param {Options["selected_tool"]} tool - the tool to use for drawing (brush, rect, line, fill)
  * @param {UI_State} ui_state - the UI state containing drawing parameters
  */
 export function draw_in_pattern(pattern, x, y, tool, ui_state) {
@@ -18,26 +21,22 @@ export function draw_in_pattern(pattern, x, y, tool, ui_state) {
 
     if (tool === 'brush') {
         pattern.pixels[y][x] = ui_state.draw_value;
-        return;
-    }
 
-    if (tool === 'rect') {
-        const fromX = Math.min(ui_state.draw_start_x, x);
-        const fromY = Math.min(ui_state.draw_start_y, y);
-        const toX   = Math.max(ui_state.draw_start_x, x);
-        const toY   = Math.max(ui_state.draw_start_y, y);
+    } else if (tool === 'rect') {
+        const fromX = Math.min(ui_state.draw_start_x ?? Infinity, x);
+        const fromY = Math.min(ui_state.draw_start_y ?? Infinity, y);
+        const toX   = Math.max(ui_state.draw_start_x ?? -Infinity, x);
+        const toY   = Math.max(ui_state.draw_start_y ?? -Infinity, y);
 
         for (let row = fromY; row <= toY; row++) {
             for (let col = fromX; col <= toX; col++) {
                 pattern.pixels[row][col] = ui_state.draw_value;
             }
         }
-        return;
-    }
 
-    if (tool === 'line') {
-        let fromX = ui_state.draw_start_x;
-        let fromY = ui_state.draw_start_y;
+    } else if (tool === 'line') {
+        let fromX = ui_state.draw_start_x || x;
+        let fromY = ui_state.draw_start_y || y;
         const toX = x;
         const toY = y;
 
@@ -54,16 +53,14 @@ export function draw_in_pattern(pattern, x, y, tool, ui_state) {
             if (err2 > -dy) { err -= dy; fromX += sx; }
             if (err2 < dx)  { err += dx; fromY += sy; }
         }
-        return;
-    }
-
-    if (tool === 'fill') {
+        
+    } else if (tool === 'fill') {
         const target_color = pattern.pixels[y][x];
         if (target_color === ui_state.draw_value) return;
 
         const stack = [[x, y]];
-        while (stack.length > 0) {
-            const [px, py] = stack.pop();
+        while (stack.length) {
+            const [px, py] = /** @type [number, number] */ (stack.pop() ?? undefined);
             if (px < 0 || px >= pattern.width || py < 0 || py >= pattern.height) continue;
             if (pattern.pixels[py][px] !== target_color) continue;
             pattern.pixels[py][px] = ui_state.draw_value;
@@ -72,6 +69,8 @@ export function draw_in_pattern(pattern, x, y, tool, ui_state) {
             stack.push([px, py + 1]);
             stack.push([px, py - 1]);
         }
+    } else {
+        console.warn(`Unknown tool: ${tool}`);
     }
 }
 
