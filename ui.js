@@ -12,6 +12,7 @@ function init_starter_project() {
     set_default_rules();
     set_default_play_pattern();
     // render
+    update_palette();
     update_css_vars();
     update_all_rule_els();
     update_play_pattern_el();
@@ -215,8 +216,8 @@ function render_menu_buttons() {
                 if (value !== -1) {
                     btn.style.backgroundColor = value_to_color(value);
                     btn.style.backgroundImage = "none";
+                    btn.style.color = UI_STATE.text_contrast_palette[value] || "black"; // magenta is missing bg color
                 }
-                btn.style.color = contrast_to_color(value);
             }
             btn.textContent = label;
             btn.title = (keys) ? "Hotkey: " + prettify_hotkey_names(keys) : "No hotkey"; // tooltip
@@ -291,7 +292,7 @@ function create_rule_el(rule) {
     ruleEl.appendChild(rule_content);
 
     // comment
-    if (rule.has_comment) {
+    if (rule.show_comment) {
         const rule_comment = document.createElement("input");
         const ghost = document.getElementById('input-ghost');
         rule_comment.className = "rule-comment";

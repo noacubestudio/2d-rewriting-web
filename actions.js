@@ -183,10 +183,13 @@ function load_project(file) {
     reader.onload = () => {
         try {
             const json = JSON.parse(reader.result);
-            Object.assign(PROJECT, json);
+            for (const key in json) {
+                if (key in PROJECT) PROJECT[key] = json[key];
+            }
+            console.log("Loaded project:", PROJECT);          
 
             clear_undo_stack();
-
+            update_palette(); // update text colors
             update_css_vars();
             update_all_rule_els();
             update_play_pattern_el();
@@ -213,6 +216,8 @@ NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
             return;
         }
         OPTIONS.default_tile_size = new_tile_size;
+        // TODO: add palette input.
+
         save_options();
 
         // reset the project
@@ -294,14 +299,19 @@ function pick_draw_value(value_at_pixel) {
       0 : OPTIONS.selected_palette_value;
 }
 
-function value_to_color(value) { 
-    if (value === -1) return "transparent"; // wildcard
-    return PIXEL_PALLETTE[value] || "magenta";
+function update_palette() {
+    // make text colors that have contrast with the background
+    PROJECT.palette.forEach((color, i) => {
+        const rgb = color.match(/\w\w/g).map((c) => parseInt(c, 16));
+        const brightness = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]);
+        const new_css_color = (brightness > 127) ? "black" : "white";
+        UI_STATE.text_contrast_palette[i] = new_css_color;
+    });
 }
 
-function contrast_to_color(value) {
-    if (value === -1) return "white";
-    return TEXT_ON_PIXEL_PALLETTE[value] || "purple";
+function value_to_color(value) { 
+    if (value === -1) return "transparent"; // wildcard
+    return PROJECT.palette[value] || "magenta";
 }
 
 function draw_pattern_to_canvas(pattern, canvas) {

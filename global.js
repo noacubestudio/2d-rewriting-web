@@ -1,8 +1,5 @@
 // constants
 
-const PIXEL_PALLETTE         = ["#131916", "#fff", "#6cd9b5", "#036965"]; // 'black', white, light, dark
-const TEXT_ON_PIXEL_PALLETTE = ["#fff", "#000", "#000", "#fff"];
-
 const RULE_APPLICATION_LIMIT = 10000;
 const UNDO_STACK_LIMIT = 64;
 
@@ -24,7 +21,7 @@ const ACTIONS = [
 
     { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["f"                    ], action: (s) => toggle_rule_flag(s, 'rotate') },
     { id: "rule_flag", hint: "☑️ Group"       , keys: ["g"                    ], action: (s) => toggle_rule_flag(s, 'part_of_group') },
-    { id: "rule_flag", hint: "☑️ Comment"     , keys: ["t"                    ], action: (s) => toggle_rule_flag(s, 'has_comment') },
+    { id: "rule_flag", hint: "☑️ Comment"     , keys: ["t"                    ], action: (s) => toggle_rule_flag(s, 'show_comment') },
 
     { id: "swap"     , hint: null             , keys: ["ArrowUp"              ], action: (s) => reorder_selection(s,-1) },
     { id: "swap"     , hint: null             , keys: ["ArrowDown"            ], action: (s) => reorder_selection(s,1) },
@@ -70,9 +67,9 @@ const TOOL_SETTINGS = [
 
 // mutable state
 
-// load from localStorage if available, not project specific
-
+// load options from localStorage if available, not project specific
 const OPTIONS = {
+    default_palette: ["#131916", "#ffffff", "#6cd9b5", "#036965"], // hexacdecimal colors, 6 digits
     selected_palette_value: 1,
     selected_tool: 'brush',
     run_after_change: false,
@@ -100,19 +97,34 @@ function load_options() {
 }
 load_options();
 
-// manually saved and loaded
-const PROJECT = {
-    tile_size: undefined,
-    rules: undefined,
-    editor_obj_id_counter: undefined,
-    play_pattern: undefined,
-    selected: {
-        paths: undefined,
-        type: undefined
-    }
-}
-function clear_project_obj(tile_size = OPTIONS.default_tile_size) {
+
+// the project object is manually saved and loaded.
+// importantly, it includes the rules and play pattern.
+
+/** @typedef {Object} Rule 
+ * @property {string} id - unique identifier for the rule
+ * @property {number} label - generated label for the rule
+ * @property {boolean} part_of_group
+ * @property {boolean} rotate - whether to expand to all 4 rotations
+ * @property {boolean} show_comment
+ * @property {string} comment
+ * @property {object[]} parts
+*/
+
+/** @type {{
+ *   tile_size: number,
+ *   palette: string[],
+ *   rules: Rule[],
+ *   editor_obj_id_counter: number,
+ *   play_pattern: object,
+ *   selected: { paths: object[], type: string | null }
+ * }}
+*/
+const PROJECT = {};
+
+function clear_project_obj(tile_size = OPTIONS.default_tile_size, palette = OPTIONS.default_palette) {
     PROJECT.tile_size = tile_size;
+    PROJECT.palette = palette;
     PROJECT.rules = [];
     PROJECT.editor_obj_id_counter = 0;
     PROJECT.play_pattern = {};
@@ -145,4 +157,5 @@ const UI_STATE = {
     draw_y: null,
     draw_patterns: [],      // set at start of drawing
     draw_pixels_cloned: [], // set at start of drawing
+    text_contrast_palette: [], // generated from project palette
 };
