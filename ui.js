@@ -7,6 +7,7 @@ import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_dra
 /** @typedef {import('./state.js').Selection} Selection */
 /** @typedef {import('./state.js').Rule} Rule */
 /** @typedef {import('./state.js').Pattern} Pattern */
+/** @typedef {import('./state.js').Options} Options */
 
 
 const RULES_CONTAINER_EL = document.getElementById("rules-container");
@@ -54,7 +55,7 @@ document.addEventListener("keydown", (e) => {
             if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
                 e.preventDefault();
                 do_tool_setting(bindings_group.option_key, binding.value);
-                update_tool_buttons(bindings_group.group, i);
+                update_tool_buttons(bindings_group.option_key, i);
                 return;
             }
         }
@@ -197,7 +198,7 @@ if (NEW_PROJECT_DIALOG_EL) NEW_PROJECT_DIALOG_EL.addEventListener("close", () =>
 
 /**
  * @callback render_callback
- * @param {"selection" | "play" | "rules"} change_type
+ * @param {"selection" | "play" | "rules" | "palette"} change_type
  * @param {{ rule_id?: string, old_sel?: Selection, new_sel?: Selection } | null} data
  * @returns {void}
 */
@@ -222,6 +223,12 @@ function render_callback(change_type, data) {
         } 
         update_all_rule_els();
 
+    } else if (change_type === "palette") {
+        update_tool_button_set('selected_palette_value');
+        // TODO: below is only needed if the previous value was different?
+        // which it should be when out of bounds? or maybe default to 1.
+        update_tool_buttons('selected_palette_value', OPTIONS.selected_palette_value);
+
     } else {
         console.warn("Unknown change type:", change_type, data);
     }
@@ -231,22 +238,6 @@ function render_callback(change_type, data) {
 // rendering functions
 
 function render_menu_buttons() {
-
-    /** @param {string[]} keys */
-    function prettify_hotkey_names(keys) {
-        return keys.map(key => {
-            switch (key) {
-                case "ArrowUp": return "↑";
-                case "ArrowDown": return "↓";
-                case "ArrowLeft": return "←";
-                case "ArrowRight": return "→";
-                case "Control": return "CTRL";
-                case " ": return "SPACE";
-                default: return key.toUpperCase();
-            }
-        }).join(" + ");
-    }
-
     if (!ACTIONS_CONTAINER_EL) throw new Error("No actions container found");
     if (!TOOL_SETTINGS_CONTAINER_EL) throw new Error("No tool settings container found");
 
@@ -261,46 +252,81 @@ function render_menu_buttons() {
         ACTIONS_CONTAINER_EL.appendChild(btn);
     });
 
-    TOOL_SETTINGS.forEach(({group, hint: group_label_text, option_key, options}) => {
+    TOOL_SETTINGS.forEach(({hint: group_label_text, option_key, options}) => {
         // make container for options and add label in front
         const group_container = document.createElement("div");
         group_container.className = "options-container";
-        group_container.dataset.group = group;
+        group_container.dataset.group = option_key;
         if (group_label_text) {
             const group_label_el = document.createElement("label");
             group_label_el.textContent = group_label_text;
             group_label_el.className = "group-label";
             group_container.appendChild(group_label_el);
         }
-
-        // add options to container
-        options.forEach(({label, keys, value}, i) => {
-            const btn = document.createElement("button");
-            btn.className = "tool-button";
-            btn.dataset.group = group;
-            btn.dataset.option_index = i.toString();
-            if (value === OPTIONS[option_key]) btn.classList.add("active"); // initially active button
-            if (group === "colors") {
-                btn.classList.add("color-button");
-                if (value !== -1) {
-                    btn.style.backgroundColor = value_to_color(value);
-                    btn.style.backgroundImage = "none";
-                    btn.style.color = UI_STATE.text_contrast_palette[value] || "black"; // magenta is missing bg color
-                }
-            }
-            btn.textContent = label;
-            btn.title = (keys) ? "Hotkey: " + prettify_hotkey_names(keys) : "No hotkey"; // tooltip
-            btn.addEventListener("click", () => { 
-                do_tool_setting(option_key, value); 
-                const matching_buttons = group_container.querySelectorAll(`button[data-group="${group}"]`);
-                matching_buttons.forEach(b => b.classList.remove("active"));
-                btn.classList.add("active")
-            });
-            group_container.appendChild(btn);
-        });
+        populate_with_options(group_container, option_key, options); // add options to container
 
         TOOL_SETTINGS_CONTAINER_EL.appendChild(group_container);
     });
+}
+
+/** 
+ * @param {HTMLDivElement} group_container 
+ * @param {keyof Options} option_key
+ * @param {{label: string, keys: string[] | null, value: any }[]} options - the options to add
+ */
+function populate_with_options(group_container, option_key, options) {
+    // add options to container
+    options.forEach(({label, keys, value}, i) => {
+        const btn = document.createElement("button");
+        btn.className = "tool-button";
+        btn.dataset.group = option_key;
+        btn.dataset.option_index = i.toString();
+        if (value === OPTIONS[option_key]) btn.classList.add("active"); // initially active button
+        if (option_key === "selected_palette_value") {
+            btn.classList.add("color-button");
+            if (value !== -1) {
+                btn.style.backgroundColor = value_to_color(value);
+                btn.style.backgroundImage = "none";
+                btn.style.color = UI_STATE.text_contrast_palette[value] || "black"; // magenta is missing bg color
+            }
+        }
+        btn.textContent = label;
+        btn.title = (keys) ? "Hotkey: " + prettify_hotkey_names(keys) : "No hotkey"; // tooltip
+        btn.addEventListener("click", () => { 
+            do_tool_setting(option_key, value); 
+            const matching_buttons = group_container.querySelectorAll(`button[data-group="${option_key}"]`);
+            matching_buttons.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active")
+        });
+        group_container.appendChild(btn);
+    });
+}
+
+/** @param {string[]} keys */
+function prettify_hotkey_names(keys) {
+    return keys.map(key => {
+        switch (key) {
+            case "ArrowUp": return "↑";
+            case "ArrowDown": return "↓";
+            case "ArrowLeft": return "←";
+            case "ArrowRight": return "→";
+            case "Control": return "CTRL";
+            case " ": return "SPACE";
+            default: return key.toUpperCase();
+        }
+    }).join(" + ");
+}
+
+/** @param {keyof Options} option_key */
+function update_tool_button_set(option_key) {
+    if (!TOOL_SETTINGS_CONTAINER_EL) throw new Error("No tool settings container found");
+    const container_el = /** @type {HTMLDivElement} */ (TOOL_SETTINGS_CONTAINER_EL.querySelector(`.options-container[data-group="${option_key}"]`));
+    if (!container_el) throw new Error(`Container for ${option_key} not found`);
+
+    container_el.innerHTML = ""; // clear old buttons
+    const group_object = TOOL_SETTINGS.find(g => g.option_key === option_key);
+    if (!group_object) throw new Error(`Toolbar group object ${option_key} not found`);
+    populate_with_options(container_el, option_key, group_object.options);
 }
 
 /**

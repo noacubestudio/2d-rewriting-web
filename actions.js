@@ -73,16 +73,15 @@ export const ACTION_BUTTON_VISIBILITY = {
 const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'undo'];
 
 
-/** @typedef {Object} Tool_Setting 
- * @property {string} group - group id for the setting
+/** @typedef {Object} Tool_Setting
  * @property {string | null} hint - label next to the buttons
  * @property {keyof Options} option_key - the key in the OPTIONS object to change
- * @property {{ value: any, label: string, keys: string[] | null}[]} options - array of options for the setting
+ * @property {{ value: any, label: string, keys: (string[] | null)}[]} options - array of options for the setting
 */
 
 /** @type {Tool_Setting[]} */
 export const TOOL_SETTINGS = [
-    { group: "colors", hint: null, option_key: 'selected_palette_value', options: [
+    { hint: null, option_key: 'selected_palette_value', options: [
         { value: 1, label: "1"  , keys: ["1"] },
         { value: 2, label: "2"  , keys: ["2"] },
         { value: 3, label: "3"  , keys: ["3"] },
@@ -90,13 +89,13 @@ export const TOOL_SETTINGS = [
         { value:-1, label: "Any", keys: ["5"] },
 
     ]},
-    { group: "tools", hint: "Tool", option_key: 'selected_tool', options: [
+    { hint: "Tool", option_key: 'selected_tool', options: [
         { value: 'brush', label: "✏️", keys: ["b"] },
         { value: 'line' , label: "➖", keys: ["l"] },
         { value: 'rect' , label: "🔳", keys: ["n"] },
         { value: 'fill' , label: "🪣", keys: ["f"] },
     ]},
-    { group: "toggle_autorun", hint: "Run after change", option_key: 'run_after_change', options: [
+    { hint: "Run after change", option_key: 'run_after_change', options: [
         { value: false, label: "Off", keys: null },
         { value: true , label: "On" , keys: null },
     ]},
@@ -507,6 +506,7 @@ export function load_project(file, render_fn) {
             update_css_vars();
             render_fn("play", null);
             render_fn("rules", null);
+            render_fn("palette", null);
         } catch (err) {
             alert("Invalid project file.");
             console.error(err);
