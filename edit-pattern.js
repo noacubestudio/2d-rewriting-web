@@ -1,9 +1,8 @@
-// @ts-check
-
-/** @typedef {import('./global.js').Rule} Rule */
-/** @typedef {import('./global.js').Pattern} Pattern */
-/** @typedef {import('./global.js').UI_State} UI_State */
-/** @typedef {import('./global.js').Options} Options */
+/** @typedef {import('./state.js').Rule} Rule */
+/** @typedef {import('./state.js').Part} Part */
+/** @typedef {import('./state.js').Pattern} Pattern */
+/** @typedef {import('./state.js').UI_State} UI_State */
+/** @typedef {import('./state.js').Options} Options */
 
 // functions that just edit a pattern by drawing on it, applying a rule to it, rotating it, resizing it...
 
@@ -78,7 +77,7 @@ export function draw_in_pattern(pattern, x, y, tool, ui_state) {
  * Rotate a pattern 90 degrees clockwise a given number of times.
  * @param {Pattern} pattern - the pattern to rotate
  * @param {number} times - number of times to rotate the pattern (default is 1)
-*/
+ */
 export function rotate_pattern(pattern, times = 1) {
     for (let i = 0; i < times; i++) {
         const new_pixels = pattern.pixels[0].map((_, index) => pattern.pixels.map(row => row[index]).reverse());
@@ -94,7 +93,7 @@ export function rotate_pattern(pattern, times = 1) {
  * @param {number} new_width - the new width of the pattern
  * @param {number} new_height - the new height of the pattern
  * @param {number} fill - the value to fill empty pixels with (default is 0)
-*/
+ */
 export function resize_pattern(pattern, new_width, new_height, fill = 0) {
     const old_pixels = pattern.pixels;
     const old_height = old_pixels.length;
@@ -115,7 +114,7 @@ export function resize_pattern(pattern, new_width, new_height, fill = 0) {
  * @param {Pattern} pattern - the pattern to shift
  * @param {number} x_direction - number of pixels to shift in the x direction left (negative) or right (positive)
  * @param {number} y_direction - number of pixels to shift in the y direction up (negative) or down (positive)
-*/
+ */
 export function shift_pattern(pattern, x_direction, y_direction) {
     if (y_direction !== 0) {
         const new_pixels = Array.from({ length: pattern.height }, () => Array(pattern.width).fill(0));
@@ -141,7 +140,7 @@ export function shift_pattern(pattern, x_direction, y_direction) {
  * Flip a pattern horizontally or vertically.
  * @param {Pattern} pattern - the pattern to flip
  * @param {boolean} horizontal
-*/
+ */
 export function flip_pattern(pattern, horizontal = true) {
     if (horizontal) {
         pattern.pixels = pattern.pixels.map(row => row.reverse());
@@ -160,9 +159,11 @@ export function flip_pattern(pattern, horizontal = true) {
  * @param {Rule} rule - the rule to apply
  * @param {number} step_size - the step size for searching the pattern in the target
  * @return {boolean} - true if the rule was applied, false otherwise
-*/
+ */
 export function apply_rule(target_pattern, rule, step_size) {
     // find a match for the initial pattern of every part in the play_pattern
+
+    /** @type {{ part: Part, x: number, y: number }[]} */
     const part_matches = [];
     rule.parts.forEach((part) => {
         const part_pattern = part.patterns[0];
@@ -180,6 +181,13 @@ export function apply_rule(target_pattern, rule, step_size) {
     return has_replaced; // a useless rule does not need to be checked over and over again.
 }
 
+/**
+ * Find a pattern in a target pattern at a given step size.
+ * @param {Pattern} pattern
+ * @param {Pattern} target
+ * @param {number} step_size
+ * @return {{ x: number, y: number }} - -1 if not found
+ */
 function find_pattern_in_target(pattern, target, step_size) {
     for (let y = 0; y <= target.height - pattern.height; y += step_size) {
         for (let x = 0; x <= target.width - pattern.width; x += step_size) {
@@ -191,6 +199,13 @@ function find_pattern_in_target(pattern, target, step_size) {
     return { x: -1, y: -1 }; // no match found
 }
 
+/**
+ * Check if a pattern matches a target pattern at a given x and y position.
+ * @param {Pattern} pattern
+ * @param {Pattern} target
+ * @param {number} x
+ * @param {number} y
+ */
 function is_pattern_match(pattern, target, x, y) {
     for (let py = 0; py < pattern.height; py++) {
         for (let px = 0; px < pattern.width; px++) {
@@ -204,6 +219,12 @@ function is_pattern_match(pattern, target, x, y) {
     return true;
 }
 
+/**
+ * Apply the matches found in the target pattern.
+ * @param {{ part: Part, x: number, y: number }[]} part_matches - match coords per part
+ * @param {Pattern} target
+ * @return {boolean} - true if any replacements were made
+ */
 function apply_matches_in_target(part_matches, target) {
     let has_replaced = false;
     part_matches.forEach(({ part, x, y }) => {

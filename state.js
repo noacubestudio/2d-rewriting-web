@@ -1,5 +1,3 @@
-// @ts-check
-
 export const RULE_APPLICATION_LIMIT = 10000;
 export const UNDO_STACK_LIMIT = 64;
 
@@ -11,10 +9,6 @@ export const UNDO_STACK_LIMIT = 64;
  * @property {boolean} run_after_change - whether to run rules after changing the play pattern
  * @property {number} pixel_scale - scale of the pixels in the editor
  * @property {number} default_tile_size - default size of the tile in pixels
-*/
-
-/**
- * @typedef {"selected_palette_value" | "selected_tool" | "run_after_change"} Toolbar_Option_Key
 */
 
 /** @type {Options} */
@@ -79,13 +73,21 @@ load_options();
 */
 
 /**
+ * Boolean flags in rule objects. These can be toggled.
  * @typedef {"part_of_group" | "rotate" | "show_comment"} Rule_Flag_Key
+*/
+
+/**
+ * @typedef {Object} Selection_Path
+ * @property {string} rule_id
+ * @property {string} [part_id]
+ * @property {string} [pattern_id]
 */
 
 /** 
  * @typedef {Object} Selection
  * @property {"play" | "rule" | "part" | "pattern" | null} type - type of selection that all selections are of
- * @property {{ rule_id: string, part_id?: string, pattern_id?: string }[]} paths - arrays selection IDs
+ * @property {Selection_Path[]} paths - arrays selection IDs
 */
 
 /** 

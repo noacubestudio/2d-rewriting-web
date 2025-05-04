@@ -1,18 +1,18 @@
-// @ts-check
-
-import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, UNDO_STACK_LIMIT, RULE_APPLICATION_LIMIT } from "./global.js";
-import { clear_undo_stack, generate_id, get_blank_pattern, selections_equal } from "./global.js";
+import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, UNDO_STACK_LIMIT, RULE_APPLICATION_LIMIT } from "./state.js";
+import { clear_undo_stack, generate_id, get_blank_pattern, selections_equal } from "./state.js";
 
 import { draw_in_pattern, rotate_pattern, apply_rule } from "./edit-pattern.js";
 
 import { get_selected_rule_patterns, get_selected_rule_objects } from "./edit-selection.js";
 import { toggle_rule_flag, duplicate_selection, delete_selection, clear_selection, reorder_selection, resize_patterns_in_selection, rotate_patterns_in_selection, flip_patterns_in_selection, shift_patterns_in_selection } from "./edit-selection.js";
 
-/** @typedef {import('./global.js').Rule} Rule */
-/** @typedef {import('./global.js').Pattern} Pattern */
-/** @typedef {import('./global.js').Selection} Selection */
+/** @typedef {import('./state.js').Rule} Rule */
+/** @typedef {import('./state.js').Pattern} Pattern */
+/** @typedef {import('./state.js').Selection} Selection */
+/** @typedef {import('./state.js').Options} Options */
+/** @typedef {import('./state.js').Project} Project */
+
 /** @typedef {import('./edit-selection.js').Selection_Edit_Output} Selection_Edit_Output */
-/** @typedef {import('./global.js').Toolbar_Option_Key} Toolbar_Option_Key */
 /** @typedef {import('./ui.js').render_callback} render_callback */
 
 
@@ -76,7 +76,7 @@ const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'undo'];
 /** @typedef {Object} Tool_Setting 
  * @property {string} group - group id for the setting
  * @property {string | null} hint - label next to the buttons
- * @property {Toolbar_Option_Key} option_key - the key in the OPTIONS object to change
+ * @property {keyof Options} option_key - the key in the OPTIONS object to change
  * @property {{ value: any, label: string, keys: string[] | null}[]} options - array of options for the setting
 */
 
@@ -142,7 +142,7 @@ export function do_action(action, id, render_fn) {
         // this way a single undo will also undo the input action, such as drawing.
         const last_action_target = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
         if (OPTIONS.run_after_change && last_action_target === "play") return;
-        push_to_undo_stack(true, previous_state);
+        push_to_undo_stack(true, previous_state, undefined);
         return;
     }
     
@@ -180,10 +180,16 @@ export function do_action(action, id, render_fn) {
     console.log(`Action '${id}' failed.`);
 }
 
-// when an action/ drawing on a pattern takes place
+/**
+ * When an action/ drawing on a pattern takes place
+ * @param {boolean} play_selected 
+ * @param {Pattern | Rule[]} state_to_push 
+ * @param {Selection | undefined} selection_to_push 
+ */
 function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
     const undo_stack = play_selected ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
     const undo_stack_type = play_selected ? 'play' : 'rules';
+    // @ts-ignore
     undo_stack.push(state_to_push);
     UNDO_STACK.last_undo_stack_types.push(undo_stack_type);
     if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
@@ -244,7 +250,7 @@ export function apply_rules(sel) {
         failed_count: 0,
         groups_application_count: 0,
         groups_failed_count: 0,
-        /** @type {number[]} */
+        /** @type {string[]} */
         groups_that_hit_limit: [],
     };
 
@@ -292,25 +298,34 @@ export function apply_rules(sel) {
 }
 
 /**
+ * @typedef {Object} Processed_Rule_Group
+ * @property {string} id - id of the first rule in the group
+ * @property {Rule[]} rules - the rules in the group
+*/
+
+/**
  * @param {Rule[]} rules 
  * @param {Selection | undefined} sel
- * @return {Object[] | undefined} - array of rule groups to be applied
+ * @return {Processed_Rule_Group[]} - array of rule groups to be applied
  */
 function process_rules(rules, sel) {
+    /** @type {Processed_Rule_Group[]} */
     const ruleset = [];
 
     // get selected rule ids from the selection, otherwise use all rules
     let selected_rule_ids = null;
     if (sel) {
-        if (sel.type === null || sel.type === 'play') return;
+        if (sel.type === null || sel.type === 'play') return [];
         const object_groups = get_selected_rule_objects(sel);
         selected_rule_ids = new Set(object_groups.map((obj) => obj.rule.id));
-        if (selected_rule_ids.size === 0) return;
+        if (selected_rule_ids.size === 0) return [];
     }
 
-    // actual rule object -> all patterns in the rule
-    /** @param {Rule} rule  */
+    /** 
+     * @param {Rule} rule
+     */
     function get_rule_patterns(rule) {
+        /** @type {Pattern[]} */
         const result = [];
         rule.parts.forEach(p => p.patterns.forEach(pat => result.push(pat)));
         return result;
@@ -323,6 +338,7 @@ function process_rules(rules, sel) {
         // start a new group if the rule is not part of one already.
         // if it is part, keep adding to the last group.
         // ignore the bigger groups when only some rules are selected because it won't make sense
+        /** @type {Processed_Rule_Group} */
         const group = (rule.part_of_group && !sel) ? ruleset[ruleset.length - 1] : { id: rule.id, rules: [] };
         group.rules.push(rule);
 
@@ -342,8 +358,12 @@ function process_rules(rules, sel) {
 
 
 
-// change options
-
+/**
+ * Change the value of a setting in the options object.
+ * @template {keyof Options} K
+ * @param {K} option_key
+ * @param {Options[K]} value
+ */
 export function do_tool_setting(option_key, value) {
     OPTIONS[option_key] = value;
     save_options();
@@ -474,9 +494,10 @@ export function load_project(file, render_fn) {
     const reader = new FileReader();
     reader.onload = () => {
         try {
-            // @ts-ignore
-            const json = JSON.parse(reader.result);
+            const string = /** @type {string} */ (reader.result);
+            const json = (JSON.parse(string));
             for (const key in json) {
+                // @ts-ignore
                 if (key in PROJECT) PROJECT[key] = json[key];
             }
             console.log("Loaded project:", PROJECT);          
@@ -500,10 +521,10 @@ export function load_project(file, render_fn) {
  * @param {Pattern} pattern - the primary pattern to draw in
  * @param {number} x - the x coordinate to draw at
  * @param {number} y - the y coordinate to draw at
-*/
+ */
 export function start_drawing(pattern, x, y) {
     const state_to_push = pattern.id === 'play' ? PROJECT.play_pattern : PROJECT.rules;
-    push_to_undo_stack(pattern.id === 'play', structuredClone(state_to_push));
+    push_to_undo_stack(pattern.id === 'play', structuredClone(state_to_push), undefined);
 
     // set at start of drawing
     UI_STATE.draw_start_x = x;

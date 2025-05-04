@@ -1,14 +1,12 @@
-// @ts-check
-
-import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./global.js";
-import { clear_project_obj, clear_undo_stack, selections_equal } from "./global.js";
+import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
+import { clear_project_obj, clear_undo_stack, selections_equal } from "./state.js";
 
 import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project } from "./actions.js";
 import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
 
-/** @typedef {import('./global.js').Selection} Selection */
-/** @typedef {import('./global.js').Rule} Rule */
-/** @typedef {import('./global.js').Pattern} Pattern */
+/** @typedef {import('./state.js').Selection} Selection */
+/** @typedef {import('./state.js').Rule} Rule */
+/** @typedef {import('./state.js').Pattern} Pattern */
 
 
 const RULES_CONTAINER_EL = document.getElementById("rules-container");
@@ -104,13 +102,13 @@ function get_new_sel(el) {
     const part    = /** @type {HTMLElement} */ (el.closest(".rule-part"));
     const pattern = /** @type {HTMLElement} */ (el.closest(".pattern-wrap"));
 
-    if (!rule.dataset.id) return { type: null, paths: [] }; // no rule selected
+    if (!rule || !rule.dataset.id) return { type: null, paths: [] }; // no rule selected
 
-    if (!part.dataset.id) return { type: 'rule', paths: [{ // no part selected, is rule
+    if (!part || !part.dataset.id) return { type: 'rule', paths: [{ // no part selected, is rule
         rule_id: rule.dataset.id
     }]};
 
-    if (!pattern.dataset.id) return { type: 'part', paths: [{ // no pattern selected, is part
+    if (!pattern || !pattern.dataset.id) return { type: 'part', paths: [{ // no pattern selected, is part
         rule_id: rule.dataset.id,
         part_id: part.dataset.id
     }]};
@@ -200,9 +198,9 @@ if (NEW_PROJECT_DIALOG_EL) NEW_PROJECT_DIALOG_EL.addEventListener("close", () =>
 /**
  * @callback render_callback
  * @param {"selection" | "play" | "rules"} change_type
- * @param {{ rule_id?: number, old_sel?: object, new_sel?: object } | null} data
+ * @param {{ rule_id?: string, old_sel?: Selection, new_sel?: Selection } | null} data
  * @returns {void}
- */
+*/
 
 /** @type {render_callback} */
 function render_callback(change_type, data) {
@@ -234,6 +232,7 @@ function render_callback(change_type, data) {
 
 function render_menu_buttons() {
 
+    /** @param {string[]} keys */
     function prettify_hotkey_names(keys) {
         return keys.map(key => {
             switch (key) {
@@ -476,7 +475,7 @@ function create_rule_el(rule) {
 
     if (PROJECT.selected.type !== 'play') {
         PROJECT.selected.paths.forEach(sel_path => {
-            if (sel_path.rule_id === rule.id) update_rule_highlight(sel_path, ruleEl)
+            if (sel_path.rule_id === rule.id) add_rule_highlight(sel_path, ruleEl)
         });
     }
     return ruleEl;
@@ -553,10 +552,15 @@ function draw_patterns_to_canvases(patterns) {
     });
 }
 
-function update_rule_highlight(sel_path, rule_el) {
-    if (sel_path.part_id) {
+/**
+ * @param {import("./state.js").Selection_Path} sel_path - the selection path to highlight
+ * @param {HTMLDivElement} rule_el - the rule element to highlight in
+ */
+function add_rule_highlight(sel_path, rule_el) {
+    
+    if ('part_id' in sel_path) {
         const part_el = rule_el.querySelector(`.rule-part[data-id="${sel_path.part_id}"]`);
-        if (part_el && sel_path.pattern_id) {
+        if (part_el && 'pattern_id' in sel_path) {
             const pattern_el = part_el.querySelector(`.pattern-wrap[data-id="${sel_path.pattern_id}"]`);
             if (pattern_el) {
                 pattern_el.classList.add("selected");
@@ -580,6 +584,7 @@ function update_all_rule_els() {
     // console.log(`Rendered all ${PROJECT.rules.length} rules`);
 }
 
+/** @param {string} rule_id */
 function update_rule_el_by_id(rule_id) {
     if (!RULES_CONTAINER_EL) throw new Error("No rules container found");
     const index = PROJECT.rules.findIndex(r => r.id === rule_id);
