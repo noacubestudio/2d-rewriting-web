@@ -1,7 +1,7 @@
 import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
-import { clear_project_obj, clear_undo_stack, selections_equal } from "./state.js";
+import { clear_project_obj, clear_undo_stack, selections_equal, INITIAL_DEFAULT_PALETTE } from "./state.js";
 
-import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project } from "./actions.js";
+import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project, palette_changed } from "./actions.js";
 import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
 
 /** @typedef {import('./state.js').Selection} Selection */
@@ -171,30 +171,75 @@ function set_true_vh() {
     document.documentElement.style.setProperty('--vh-100', `${vh * 100}px`);
 }
 
-/** @type {HTMLDialogElement} */
-const NEW_PROJECT_DIALOG_EL = /** @type {any} */(document.getElementById("new-project-dialog"));
-
-if (NEW_PROJECT_DIALOG_EL) NEW_PROJECT_DIALOG_EL.addEventListener("close", () => {
-    if (NEW_PROJECT_DIALOG_EL.returnValue === "ok") {
-        // use the new tile size from the input
-        const tile_size_input = /** @type {HTMLInputElement} */ (document.getElementById("tile-size-input"));
-        if (!tile_size_input) throw new Error("No tile size input found");
-        const new_tile_size = +tile_size_input.value;
-        if (isNaN(new_tile_size) || new_tile_size < 1) {
-            alert("Invalid tile size. Please enter a positive number.");
-            return;
-        }
-        OPTIONS.default_tile_size = new_tile_size;
-        // TODO: add palette input.
-
-        save_options();
-
-        // reset the project
-        clear_project_obj();
-        clear_undo_stack();
-        init_starter_project(render_callback);
+function setup_dialogs() {
+    const dialog_els = {
+        new_project: /** @type {HTMLDialogElement} */(document.getElementById("new-project-dialog")),
+        edit_project: /** @type {HTMLDialogElement} */(document.getElementById("edit-project-dialog")),
     }
-});
+    const input_els = {
+        tile_size: /** @type {HTMLInputElement} */(document.getElementById("tile-size-input")),
+        palette: /** @type {HTMLInputElement} */(document.getElementById("palette-input")),
+    }
+    
+    dialog_els.new_project.addEventListener("close", () => {
+        if (dialog_els.new_project.returnValue === "ok") {
+            const new_tile_size = +input_els.tile_size.value;
+            if (isNaN(new_tile_size) || new_tile_size < 1) {
+                alert("Invalid tile size. Please enter a positive number.");
+                return;
+            }
+            OPTIONS.default_tile_size = new_tile_size;
+            save_options();
+    
+            // reset the project
+            clear_project_obj();
+            clear_undo_stack();
+            init_starter_project(render_callback);
+        }
+    });
+    
+    input_els.palette.value = OPTIONS.default_palette.join(" ");
+    dialog_els.edit_project.addEventListener("close", () => {
+        if (dialog_els.edit_project.returnValue === "ok") {
+            const new_palette = input_els.palette.value.split(" ").map(c => c.trim()).filter(c => c.length > 0);
+            let new_palette_hex = [];
+
+            if (new_palette.length === 0) {
+                new_palette_hex = structuredClone(INITIAL_DEFAULT_PALETTE);
+                
+            } else if (new_palette.length < 2) {
+                alert("Invalid palette. Please enter at least 2 colors.");
+                return;
+
+            } else {
+                // remove # at the start. make sure all are 6 digit hex codes, if necessary cut or repeat.
+                new_palette_hex = new_palette.map(c => {
+                    if (c.startsWith("#")) c = c.slice(1);
+                    if (c.length === 3) c = c.split("").map(d => d + d).join("");
+                    if (c.length !== 6) return "#ff00ff"; // magenta
+                    return "#" + c;
+                });
+            }
+
+            // change for the project and remember as new default
+            PROJECT.palette = new_palette_hex;
+            OPTIONS.selected_palette_value = 1; // 1 is the first color
+            OPTIONS.default_palette = structuredClone(new_palette_hex);
+            save_options();
+            palette_changed();
+
+            // change in the UI
+            update_tool_button_set('selected_palette_value');
+            update_tool_buttons('selected_palette_value', 0); // set first color as active
+            update_play_pattern_el();
+            update_all_rule_els();
+        }
+    });
+}
+setup_dialogs();
+
+
+
 
 /**
  * @callback render_callback
@@ -225,9 +270,8 @@ function render_callback(change_type, data) {
 
     } else if (change_type === "palette") {
         update_tool_button_set('selected_palette_value');
-        // TODO: below is only needed if the previous value was different?
-        // which it should be when out of bounds? or maybe default to 1.
-        update_tool_buttons('selected_palette_value', OPTIONS.selected_palette_value);
+        // assume the default color has been set
+        update_tool_buttons('selected_palette_value', 0);
 
     } else {
         console.warn("Unknown change type:", change_type, data);

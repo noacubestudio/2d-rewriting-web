@@ -278,10 +278,14 @@ dialog {
     border-radius: 0;
     box-shadow: 0 0 10px #000;
 }
+dialog h3 {
+    margin: 0;
+}
 dialog::backdrop {
     background: rgba(0, 0, 0, 0.5);
 }
 dialog form {
+    max-width: 300px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -289,16 +293,17 @@ dialog form {
 dialog form > label {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
+    color: #aaa
 }
-dialog input[type="number"] {
+dialog input {
     background: #222;
     color: #fff;
     outline: 1px solid #777;
     outline-offset: -0.5px;
     border: none;
     border-radius: 0;
-    padding: 6px 12px;
+    padding: 8px 12px;
 }
 dialog .button-row {
     display: flex;

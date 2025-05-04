@@ -38,6 +38,7 @@ export const ACTIONS = [
     { id: "load"     , hint: "📂 Load"        , keys: ["o"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => use_file_input_and_load(render_fn) },
     { id: "save"     , hint: "💾 Save"        , keys: ["s"                    ], action: () => save_project() },
     { id: "new"      , hint: "❇️ New"         , keys: ["m"                    ], action: () => new_project() },
+    { id: "settings" , hint: "⚙️ Settings"    , keys: null                     , action: () => edit_project() },
     { id: "scale"    , hint: "➖ Px Scale"    , keys: null                     , action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(-1, render_fn) },
     { id: "scale"    , hint: "➕ Px Scale"    , keys: null                     , action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(1, render_fn) },
 
@@ -66,11 +67,11 @@ export const ACTIONS = [
     { id: "shift"    , hint: "⬇️ Shift Down"  , keys: ["ArrowDown" , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_selection(s,0,1) },
 ];
 export const ACTION_BUTTON_VISIBILITY = {
-    show_when_nothing_selected: ['run_all', 'save', 'load', 'new', 'undo', 'scale'],
-    hide_when_rule_selected: ['run_all', 'save', 'load', 'new', 'scale'],
-    hide_when_play_selected: ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'new', 'scale', 'rule_flag'],
+    show_when_nothing_selected: ['run_all', 'save', 'load', 'new', 'undo', 'scale', 'settings'],
+    hide_when_rule_selected: ['run_all', 'save', 'load', 'new', 'scale', 'settings'],
+    hide_when_play_selected: ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'new', 'scale', 'settings', 'rule_flag'],
 };
-const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'undo'];
+const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'settings', 'undo'];
 
 
 /** @typedef {Object} Tool_Setting
@@ -401,6 +402,12 @@ function new_project() {
     dialog_el.showModal();
 }
 
+function edit_project() {
+    // open the dialog to edit the project settings
+    const dialog_el = /** @type {HTMLDialogElement} */ (document.getElementById("edit-project-dialog"));
+    dialog_el.showModal();
+}
+
 /** @param {render_callback} render_fn */
 export function init_starter_project(render_fn) {
     // setup rules and play pattern to the default state
@@ -474,7 +481,7 @@ function use_file_input_and_load(render_fn) {
     document.body.removeChild(input);
 }
 
-function palette_changed() {
+export function palette_changed() {
     // make text colors that have contrast with the background
     PROJECT.palette.forEach((color, i) => {
         const rgb = color.match(/\w\w/g)?.map((c) => parseInt(c, 16));
@@ -483,6 +490,21 @@ function palette_changed() {
         const new_css_color = (brightness > 127) ? "black" : "white";
         UI_STATE.text_contrast_palette[i] = new_css_color;
     });
+
+    // change the tool settings to the new palette
+    const palette_setting = TOOL_SETTINGS.find(s => s.option_key === 'selected_palette_value');
+    if (!palette_setting) throw new Error("Palette setting not found");
+
+    // first, make an option for every color in the palette with ordered keys
+    palette_setting.options = PROJECT.palette.map((_hex, i) => {
+        const num = i + 1; // start from 1, not 0
+        return { value: num, label: num.toString(), keys: [num.toString()] };
+    });
+    // the last color needs to be 0, so the values go 1, 2, 3... 0.
+    palette_setting.options[palette_setting.options.length - 1].value = 0;
+
+    // add wildcard
+    palette_setting.options.push({ value: -1, label: "Any", keys: [palette_setting.options.length.toString()] });
 }
 
 /**
@@ -506,6 +528,8 @@ export function load_project(file, render_fn) {
             update_css_vars();
             render_fn("play", null);
             render_fn("rules", null);
+
+            OPTIONS.selected_palette_value = 1; // color 1 is at index 0
             render_fn("palette", null);
         } catch (err) {
             alert("Invalid project file.");

@@ -1,5 +1,6 @@
 export const RULE_APPLICATION_LIMIT = 10000;
 export const UNDO_STACK_LIMIT = 64;
+export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#036965"];
 
 /**
  * @typedef {Object} Options
@@ -13,7 +14,7 @@ export const UNDO_STACK_LIMIT = 64;
 
 /** @type {Options} */
 export const OPTIONS = {
-    default_palette: ["#131916", "#ffffff", "#6cd9b5", "#036965"],
+    default_palette: structuredClone(INITIAL_DEFAULT_PALETTE),
     selected_palette_value: 1,
     selected_tool: 'brush',
     run_after_change: false,
