@@ -394,21 +394,25 @@ function update_action_buttons() {
     if (!ACTIONS_CONTAINER_EL) throw new Error("No actions container found");
 
     const sel_type = PROJECT.selected.type;
-    const visibility = ACTION_BUTTON_VISIBILITY;
+    const vis = ACTION_BUTTON_VISIBILITY;
+    const hide_id = /** @param {string} id */ (id) => ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
 
-    // show all first
+    // show by default
     ACTIONS_CONTAINER_EL.querySelectorAll(".action-button").forEach(b => b.classList.remove("hidden"));
 
-    // go through IDs
     ACTIONS.forEach(({id}) => {
-        if (sel_type === 'play' && visibility.hide_when_play_selected.includes(id)) {
-            ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
+        // hide when the id matches a group, but that group is not selected
+        if (vis.nothing_selected.includes(id)) {
+            if (sel_type !== null) hide_id(id);
 
-        } else if (sel_type === null && !visibility.show_when_nothing_selected.includes(id)) {
-            ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
+        } else if (vis.play_selected.includes(id)) {
+            if (sel_type !== 'play') hide_id(id);
 
-        } else if (sel_type && sel_type !== 'play' && visibility.hide_when_rule_selected.includes(id)) {
-            ACTIONS_CONTAINER_EL.querySelectorAll(`.action-${id}`).forEach(b => b.classList.add("hidden"));
+        } else if (vis.rules_selected.includes(id)) {
+            if (sel_type === null || sel_type === "play") hide_id(id);
+
+        } else if (vis.something_selected.includes(id)) {
+            if (!sel_type) hide_id(id);
         }
     });
 

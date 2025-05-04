@@ -32,11 +32,12 @@ export const ACTIONS = [
     { id: "run"      , hint: "✅ Run Selected", keys: ["Enter"                ], action: /** @param {Selection} s */ (s) => apply_rules(s) },
     { id: "run_all"  , hint: "✅ Run All"     , keys: [" "                    ], action: () => apply_rules(undefined) },
 
-    // actions that are not undoable themselves. in this file, so they also do rendering.
+    // actions that are not undoable themselves. render callbacks for most other functions are in do_action()
     { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
     { id: "undo"     , hint: null             , keys: ["u"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
     { id: "load"     , hint: "📂 Load"        , keys: ["o"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => use_file_input_and_load(render_fn) },
     { id: "save"     , hint: "💾 Save"        , keys: ["s"                    ], action: () => save_project() },
+    { id: "savepng"  , hint: "📷 Save PNG"    , keys: null                     , action: () => save_play_png() },
     { id: "new"      , hint: "❇️ New"         , keys: ["m"                    ], action: () => new_project() },
     { id: "settings" , hint: "⚙️ Settings"    , keys: null                     , action: () => edit_project() },
     { id: "scale"    , hint: "➖ Px Scale"    , keys: null                     , action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(-1, render_fn) },
@@ -67,11 +68,12 @@ export const ACTIONS = [
     { id: "shift"    , hint: "⬇️ Shift Down"  , keys: ["ArrowDown" , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_selection(s,0,1) },
 ];
 export const ACTION_BUTTON_VISIBILITY = {
-    show_when_nothing_selected: ['run_all', 'save', 'load', 'new', 'undo', 'scale', 'settings'],
-    hide_when_rule_selected: ['run_all', 'save', 'load', 'new', 'scale', 'settings'],
-    hide_when_play_selected: ['run', 'delete', 'duplicate', 'swap', 'save', 'load', 'new', 'scale', 'settings', 'rule_flag'],
+    nothing_selected:   ['save', 'load', 'new', 'scale', 'settings'],
+    rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag'],
+    play_selected:      ['savepng'],
+    something_selected: ['resize', 'rotate', 'flip', 'shift', 'clear'],
 };
-const NOT_UNDOABLE_ACTIONS = ['save', 'load', 'new', 'scale', 'settings', 'undo'];
+const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settings', 'undo'];
 
 
 /** @typedef {Object} Tool_Setting
@@ -462,6 +464,17 @@ function save_project() {
     a.click();
     
     URL.revokeObjectURL(url);
+}
+
+function save_play_png() {
+    const a = document.createElement("a");
+    const pixel_canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById("screen-canvas"));
+    if (!pixel_canvas) throw new Error("Main canvas element not found");
+    a.href = pixel_canvas.toDataURL("image/png");
+    a.download = "play_pattern.png";
+    a.click();
+
+    URL.revokeObjectURL(a.href);
 }
 
 /** @param {render_callback} render_fn */

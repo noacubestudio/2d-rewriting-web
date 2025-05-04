@@ -34,8 +34,8 @@ export function draw_in_pattern(pattern, x, y, tool, ui_state) {
         }
 
     } else if (tool === 'line') {
-        let fromX = ui_state.draw_start_x || x;
-        let fromY = ui_state.draw_start_y || y;
+        let fromX = ui_state.draw_start_x ?? x;
+        let fromY = ui_state.draw_start_y ?? y;
         const toX = x;
         const toY = y;
 
