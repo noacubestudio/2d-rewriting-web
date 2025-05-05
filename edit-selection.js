@@ -256,12 +256,25 @@ export function reorder_selection(sel, direction) {
  */
 export function move_selection_to_part(sel, dest_sel) {
     // for now, only handle moving patterns to a part
-    if (sel.type !== 'pattern') return;
+    if (sel.type !== 'pattern' && sel.type !== 'play') return;
+
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
+
+    if (sel.type === 'play') {
+        const object_dest = get_selected_rule_objects(dest_sel)[0];
+        output.render_play = true;
+        output.new_selected.paths = [];
+        output.new_selected.type = 'pattern'; // change type to pattern
+
+        // insert the play pattern into the part
+        const new_pattern = deep_clone_with_ids(PROJECT.play_pattern);
+        insert_at(object_dest, new_pattern);
+        return output;
+    }
 
     const objects_to_move = get_selected_rule_objects(sel);
     const object_dest = get_selected_rule_objects(dest_sel)[0];
 
-    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     output.new_selected.paths = [];
 
     objects_to_move.forEach(({ rule, part, pattern }) => {
@@ -279,15 +292,37 @@ export function move_selection_to_part(sel, dest_sel) {
         }
 
         // insertion
+        const new_pattern = deep_clone_with_ids(pattern);
+        insert_at(object_dest, new_pattern);
+    });
+
+    return output;
+
+    /**
+     * @param {{ rule: Rule, part: Part | null, pattern: Pattern | null }} object_dest 
+     * @param {Pattern} new_pattern 
+     */
+    function insert_at(object_dest, new_pattern) {
         if (!object_dest.part) throw new Error(`Can't insert at: ${JSON.stringify(dest_sel)}`);
         const insert_index = object_dest.part.patterns.length;
-        const new_pattern = deep_clone_with_ids(pattern);
+        
         object_dest.part.patterns.splice(insert_index, 0, new_pattern);
         const dest_sel_path = { rule_id: object_dest.rule.id, part_id: object_dest.part.id, pattern_id: new_pattern.id };
         output.new_selected.paths.push(dest_sel_path);
         output.render_ids.add(object_dest.rule.id);
-    });
-    return output;
+
+        // if there is a dimension mismatch after the move, resize all patterns to the largest width and height
+        const example_pattern = object_dest.part.patterns[0];
+        if (example_pattern.width !== new_pattern.width || example_pattern.height !== new_pattern.height) {
+            const new_width = Math.max(example_pattern.width, new_pattern.width);
+            const new_height = Math.max(example_pattern.height, new_pattern.height);
+            object_dest.part.patterns.forEach(p => {
+                if (p.width !== new_width || p.height !== new_height) {
+                    resize_pattern(p, new_width, new_height);
+                }
+            });
+        }
+    }
 }
 
 /** 

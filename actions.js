@@ -96,9 +96,9 @@ export const TOOL_SETTINGS = [
     { hint: "Tool", option_key: 'selected_tool', options: [
         { value: 'brush', label: "✏️", keys: ["b"] },
         { value: 'line' , label: "➖", keys: ["l"] },
-        { value: 'rect' , label: "🔳", keys: ["n"] },
+        { value: 'rect' , label: "🔳", keys: ["t"] },
         { value: 'fill' , label: "🪣", keys: ["f"] },
-        { value: 'drag' , label: "Move", keys: ["m"] },
+        { value: 'drag' , label: "🫳", keys: ["m"] },
     ]},
     { hint: "Run after change", option_key: 'run_after_change', options: [
         { value: false, label: "Off", keys: null },
@@ -660,6 +660,8 @@ export function do_drop_action(target_sel, render_fn) {
         PROJECT.selected = success.new_selected;
 
         // render changes
+        if (success.render_play) render_fn("play", null);
+
         if (success.render_ids.size) {
             [...success.render_ids].forEach(id => { render_fn("rules", { rule_id: id }); });
         }
