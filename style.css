@@ -186,15 +186,19 @@ button:active {
 .rule-part label { /* the arrow between parts */
     font-size: 1em;
 }
-.pattern-wrap {
+.rule-pattern {
     position: relative;
     outline: #666 solid 1px;
 }
-.rule.selected, .rule-part.selected, .pattern-wrap.selected {
+.rule.selected, .rule-part.selected, .rule-pattern.selected {
     outline: 1px solid #0ff;
     z-index: 20;
 }
-.pattern-wrap > canvas, .pattern-wrap > .grid {
+.rule.drop-target, .rule-part.drop-target, .rule-pattern.drop-target {
+    outline: 1px solid #ddd;
+    z-index: 19;
+}
+.rule-pattern > canvas, .rule-pattern > .grid {
     image-rendering: pixelated;
     width: 64px; /* default */
     height: 64px;  /* default */
@@ -225,7 +229,7 @@ button:active {
 }
 
 /* shared */
-.pattern-wrap, .screen-wrap {
+.rule-pattern, .screen-wrap {
     background-color: #333;
     background-image:
         linear-gradient(to top left , transparent 0%, transparent calc(50% - 0.8px),#555 50%, transparent calc(50% + 0.8px), transparent 100%),

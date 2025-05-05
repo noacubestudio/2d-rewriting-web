@@ -2,7 +2,7 @@ import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
 import { clear_project_obj, clear_undo_stack, selections_equal, INITIAL_DEFAULT_PALETTE } from "./state.js";
 
 import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project, palette_changed } from "./actions.js";
-import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
+import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing, do_drop_action } from "./actions.js";
 
 /** @typedef {import('./state.js').Selection} Selection */
 /** @typedef {import('./state.js').Rule} Rule */
@@ -101,7 +101,7 @@ if (RULES_CONTAINER_EL) RULES_CONTAINER_EL.addEventListener("pointerup", (e) => 
 function get_new_sel(el) {
     const rule    = /** @type {HTMLElement} */ (el.closest(".rule"));
     const part    = /** @type {HTMLElement} */ (el.closest(".rule-part"));
-    const pattern = /** @type {HTMLElement} */ (el.closest(".pattern-wrap"));
+    const pattern = /** @type {HTMLElement} */ (el.closest(".rule-pattern"));
 
     if (!rule || !rule.dataset.id) return { type: null, paths: [] }; // no rule selected
 
@@ -150,12 +150,16 @@ window.addEventListener("pointerup", () => finish_drawing(render_callback));
 
 // drag files on window to load
 window.addEventListener("dragover", (e) => {
+    if (!e.dataTransfer || !e.dataTransfer.types.includes("Files")) return; // ignore if not files
     e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    e.dataTransfer.dropEffect = "copy";
 });
 window.addEventListener("drop", (e) => {
+    // if there's a file
+    if (!e.dataTransfer || !e.dataTransfer.types.includes("Files")) return; // ignore if not files
     e.preventDefault();
-    const file = (e.dataTransfer) ? e.dataTransfer.files[0] : null;
+
+    const file = e.dataTransfer.files[0];
     if (file && file.type === "application/json") {
         load_project(file, render_callback);
     } else {
@@ -461,26 +465,26 @@ function draw_pattern_to_canvas(pattern, canvas) {
  * @returns {HTMLDivElement} - the rule element
  */
 function create_rule_el(rule) {
-    const ruleEl = document.createElement("div");
-    ruleEl.className = "rule";
-    ruleEl.dataset.id = rule.id;
+    const rule_el = document.createElement("div");
+    rule_el.className = "rule";
+    rule_el.dataset.id = rule.id;
 
     // rule label
     const rule_label = document.createElement("label");
     let rule_label_text = rule.label.toString() || "?";
     if (rule.rotate) {
         rule_label_text += "x4";
-        ruleEl.classList.add("flag-rotate");
+        rule_el.classList.add("flag-rotate");
     }
-    if (rule.part_of_group) ruleEl.classList.add("flag-group");
+    if (rule.part_of_group) rule_el.classList.add("flag-group");
     rule_label.textContent = rule_label_text;
     rule_label.className = "rule-label";
-    ruleEl.appendChild(rule_label);
+    rule_el.appendChild(rule_label);
 
     // rule content
     const rule_content = document.createElement("div");
     rule_content.className = "rule-content";
-    ruleEl.appendChild(rule_content);
+    rule_el.appendChild(rule_content);
 
     // comment
     if (rule.show_comment) {
@@ -511,48 +515,65 @@ function create_rule_el(rule) {
     rule_parts.className = "rule-parts";
     rule_content.appendChild(rule_parts);
     rule.parts.forEach(part => {
-        const partEl = document.createElement("div");
-        partEl.className = "rule-part";
-        partEl.dataset.id = part.id;
+        const part_el = document.createElement("div");
+        part_el.className = "rule-part";
+        part_el.dataset.id = part.id;
 
         part.patterns.forEach((pattern, pat_index) => {
-            const wrapEl = document.createElement("div");
-            wrapEl.className = "pattern-wrap";
-            wrapEl.dataset.id = pattern.id;
+            const pattern_el = document.createElement("div");
+            pattern_el.className = "rule-pattern";
+            pattern_el.dataset.id = pattern.id;
+            pattern_el.draggable = true;
 
             const canvas = document.createElement("canvas");
             canvas.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
             canvas.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
             draw_pattern_to_canvas(pattern, canvas);
-            wrapEl.appendChild(canvas);
+            pattern_el.appendChild(canvas);
 
             const is_selected = PROJECT.selected.type === 'pattern' && 
                 PROJECT.selected.paths.find(p => p.pattern_id === pattern.id);
 
             if (is_selected) {
                 const grid = create_pattern_editor_el(pattern, canvas);
-                wrapEl.appendChild(grid);
+                pattern_el.appendChild(grid);
             }
 
-            partEl.appendChild(wrapEl);
+            part_el.appendChild(pattern_el);
 
             if (pat_index === 0) {
                 const arrowEl = document.createElement("label");
                 arrowEl.textContent = part.patterns.length > 1 ? '→' : '?';
                 arrowEl.style.fontSize = part.patterns.length > 1 ? "1.3em" : "1em";
-                partEl.appendChild(arrowEl);
+                part_el.appendChild(arrowEl);
             }
         });
 
-        rule_parts.appendChild(partEl);
+        part_el.addEventListener("dragover", (e) => {
+            e.preventDefault(); // allow drop
+            part_el.classList.add("drop-target");
+        });
+        part_el.addEventListener("dragleave", () => {
+            part_el.classList.remove("drop-target");
+        });
+
+        part_el.addEventListener("drop", (e) => {
+            e.preventDefault();
+            part_el.classList.remove("drop-target");
+            const target_sel = get_new_sel(/** @type {HTMLElement} */ (e.target));
+
+            do_drop_action(target_sel, render_callback);
+        });
+
+        rule_parts.appendChild(part_el);
     });
 
     if (PROJECT.selected.type !== 'play') {
         PROJECT.selected.paths.forEach(sel_path => {
-            if (sel_path.rule_id === rule.id) add_rule_highlight(sel_path, ruleEl)
+            if (sel_path.rule_id === rule.id) add_rule_highlight(sel_path, rule_el)
         });
     }
-    return ruleEl;
+    return rule_el;
 }
 
 /**
@@ -580,6 +601,7 @@ function create_pattern_editor_el(pattern, canvas) {
     }
 
     grid.addEventListener("pointerdown", (e) => {
+        if (OPTIONS.selected_tool === 'drag') return; // not a drawing tool.
         e.preventDefault();
 
         UI_STATE.is_drawing = true;
@@ -621,7 +643,7 @@ function create_pattern_editor_el(pattern, canvas) {
 function draw_patterns_to_canvases(patterns) {
     patterns.forEach(p => {
         /** @type {HTMLCanvasElement | null} */
-        const canvas = document.querySelector(`.pattern-wrap[data-id="${p.id}"] canvas`);
+        const canvas = document.querySelector(`.rule-pattern[data-id="${p.id}"] canvas`);
         if (canvas) draw_pattern_to_canvas(p, canvas);
     });
 }
@@ -635,7 +657,7 @@ function add_rule_highlight(sel_path, rule_el) {
     if ('part_id' in sel_path) {
         const part_el = rule_el.querySelector(`.rule-part[data-id="${sel_path.part_id}"]`);
         if (part_el && 'pattern_id' in sel_path) {
-            const pattern_el = part_el.querySelector(`.pattern-wrap[data-id="${sel_path.pattern_id}"]`);
+            const pattern_el = part_el.querySelector(`.rule-pattern[data-id="${sel_path.pattern_id}"]`);
             if (pattern_el) {
                 pattern_el.classList.add("selected");
             }

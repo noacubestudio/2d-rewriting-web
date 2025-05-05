@@ -16,7 +16,11 @@ import { rotate_pattern, resize_pattern, shift_pattern, flip_pattern } from "./e
  * @returns {T & (Rule | Part | Pattern)} - The cloned object with updated ids
  */
 function deep_clone_with_ids(obj) {
-    if ('id' in obj) {
+    if (Array.isArray(obj)) {
+        // @ts-ignore
+        return obj.map(item => deep_clone_with_ids(item));
+
+    } else if (obj && typeof obj === 'object' && 'id' in obj) {
         const copy = /** @type {T & (Rule | Part | Pattern)} */({});
         for (const key in obj) {
             // @ts-ignore
@@ -242,6 +246,47 @@ export function reorder_selection(sel, direction) {
         });
         keep_rules_valid(); // movement can cause rules to become invalid in some cases
     } else return; // should not happen
+    return output;
+}
+
+/** 
+ * @param {Selection} sel 
+ * @param {Selection} dest_sel
+ * @returns {Selection_Edit_Output | undefined}
+ */
+export function move_selection_to_part(sel, dest_sel) {
+    // for now, only handle moving patterns to a part
+    if (sel.type !== 'pattern') return;
+
+    const objects_to_move = get_selected_rule_objects(sel);
+    const object_dest = get_selected_rule_objects(dest_sel)[0];
+
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
+    output.new_selected.paths = [];
+
+    objects_to_move.forEach(({ rule, part, pattern }) => {
+        // ignore if not moved
+        if (part?.id === object_dest.part?.id) return;
+
+        // deletion
+        if (!part || !pattern) throw new Error(`Can't remove: ${JSON.stringify(sel)}`);
+
+        // after deletion, there has to be at least one pattern left, just keep the pattern otherwise
+        if (part.patterns.length >= 2) {
+            const index = part.patterns.findIndex(p => p.id === pattern.id);
+            part.patterns.splice(index, 1);
+            output.render_ids.add(rule.id);
+        }
+
+        // insertion
+        if (!object_dest.part) throw new Error(`Can't insert at: ${JSON.stringify(dest_sel)}`);
+        const insert_index = object_dest.part.patterns.length;
+        const new_pattern = deep_clone_with_ids(pattern);
+        object_dest.part.patterns.splice(insert_index, 0, new_pattern);
+        const dest_sel_path = { rule_id: object_dest.rule.id, part_id: object_dest.part.id, pattern_id: new_pattern.id };
+        output.new_selected.paths.push(dest_sel_path);
+        output.render_ids.add(object_dest.rule.id);
+    });
     return output;
 }
 

@@ -6,7 +6,7 @@ export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#03696
  * @typedef {Object} Options
  * @property {string[]} default_palette - hexadecimal colors, 6 digits
  * @property {number} selected_palette_value - used to index the project palette
- * @property {"brush" | "rect" | "line" | "fill"} selected_tool
+ * @property {"brush" | "rect" | "line" | "fill" | "drag"} selected_tool
  * @property {boolean} run_after_change - whether to run rules after changing the play pattern
  * @property {number} pixel_scale - scale of the pixels in the editor
  * @property {number} default_tile_size - default size of the tile in pixels

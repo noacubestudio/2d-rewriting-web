@@ -5,6 +5,7 @@ import { draw_in_pattern, rotate_pattern, apply_rule } from "./edit-pattern.js";
 
 import { get_selected_rule_patterns, get_selected_rule_objects } from "./edit-selection.js";
 import { toggle_rule_flag, duplicate_selection, delete_selection, clear_selection, reorder_selection, resize_patterns_in_selection, rotate_patterns_in_selection, flip_patterns_in_selection, shift_patterns_in_selection } from "./edit-selection.js";
+import { move_selection_to_part } from "./edit-selection.js";
 
 /** @typedef {import('./state.js').Rule} Rule */
 /** @typedef {import('./state.js').Pattern} Pattern */
@@ -35,21 +36,21 @@ export const ACTIONS = [
     // actions that are not undoable themselves. render callbacks for most other functions are in do_action()
     { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
     { id: "undo"     , hint: null             , keys: ["u"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
-    { id: "load"     , hint: "📂 Load"        , keys: ["o"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => use_file_input_and_load(render_fn) },
-    { id: "save"     , hint: "💾 Save"        , keys: ["s"                    ], action: () => save_project() },
+    { id: "load"     , hint: "📂 Load"        , keys: ["Shift", "o"           ], action: /** @param {render_callback} render_fn */ (render_fn) => use_file_input_and_load(render_fn) },
+    { id: "save"     , hint: "💾 Save"        , keys: ["Shift", "s"           ], action: () => save_project() },
     { id: "savepng"  , hint: "📷 Save PNG"    , keys: null                     , action: () => save_play_png() },
-    { id: "new"      , hint: "❇️ New"         , keys: ["m"                    ], action: () => new_project() },
+    { id: "new"      , hint: "❇️ New"         , keys: ["Shift", "n"           ], action: () => new_project() },
     { id: "settings" , hint: "⚙️ Settings"    , keys: null                     , action: () => edit_project() },
-    { id: "scale"    , hint: "➖ Px Scale"    , keys: null                     , action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(-1, render_fn) },
-    { id: "scale"    , hint: "➕ Px Scale"    , keys: null                     , action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(1, render_fn) },
+    { id: "scale"    , hint: "➖ Px Scale"    , keys: ["-"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(-1, render_fn) },
+    { id: "scale"    , hint: "➕ Px Scale"    , keys: ["="                    ], action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(1, render_fn) },
 
     { id: "delete"   , hint: "❌ Delete"      , keys: ["Delete"               ], action: /** @param {Selection} s */ (s) => delete_selection(s) },
     { id: "clear"    , hint: "🧼 Clear"       , keys: ["w"                    ], action: /** @param {Selection} s */ (s) => clear_selection(s) },
     { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: /** @param {Selection} s */ (s) => duplicate_selection(s) },
 
-    { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["f"                    ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'rotate') },
-    { id: "rule_flag", hint: "☑️ Group"       , keys: ["g"                    ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'part_of_group') },
-    { id: "rule_flag", hint: "☑️ Comment"     , keys: ["t"                    ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'show_comment') },
+    { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["Alt", "r"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'rotate') },
+    { id: "rule_flag", hint: "☑️ Group"       , keys: ["Alt", "g"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'part_of_group') },
+    { id: "rule_flag", hint: "☑️ Comment"     , keys: ["Alt", "c"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'show_comment') },
 
     { id: "swap"     , hint: null             , keys: ["ArrowUp"              ], action: /** @param {Selection} s */ (s) => reorder_selection(s,-1) },
     { id: "swap"     , hint: null             , keys: ["ArrowDown"            ], action: /** @param {Selection} s */ (s) => reorder_selection(s,1) },
@@ -97,6 +98,7 @@ export const TOOL_SETTINGS = [
         { value: 'line' , label: "➖", keys: ["l"] },
         { value: 'rect' , label: "🔳", keys: ["n"] },
         { value: 'fill' , label: "🪣", keys: ["f"] },
+        { value: 'drag' , label: "Move", keys: ["m"] },
     ]},
     { hint: "Run after change", option_key: 'run_after_change', options: [
         { value: false, label: "Off", keys: null },
@@ -633,4 +635,28 @@ function pick_draw_value(value_at_pixel) {
     // when starting on the color itself, erase instead of draw
     UI_STATE.draw_value = (value_at_pixel === OPTIONS.selected_palette_value) ? 
       0 : OPTIONS.selected_palette_value;
+}
+
+/**
+ * @param {Selection} target_sel - the selection to move the current selection to
+ * @param {render_callback} render_fn 
+ */
+export function do_drop_action(target_sel, render_fn) {
+    // save state for undo
+    const play_selected = PROJECT.selected.type === 'play';
+    const previous_state = structuredClone(play_selected ? PROJECT.play_pattern : PROJECT.rules);
+    const previous_selection = structuredClone(PROJECT.selected);
+
+    const success = move_selection_to_part(PROJECT.selected, target_sel);
+    if (success) {
+        // change selection
+        PROJECT.selected = success.new_selected;
+
+        // render changes
+        if (success.render_ids.size) {
+            [...success.render_ids].forEach(id => { render_fn("rules", { rule_id: id }); });
+        }
+
+        push_to_undo_stack(play_selected, previous_state, previous_selection);
+    }
 }
