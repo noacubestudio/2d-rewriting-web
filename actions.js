@@ -367,10 +367,17 @@ function process_rules(rules, sel) {
  * @template {keyof Options} K
  * @param {K} option_key
  * @param {Options[K]} value
+ * @returns { { render_selected: boolean } | undefined }
  */
 export function do_tool_setting(option_key, value) {
+    const previous_value = OPTIONS[option_key];
     OPTIONS[option_key] = value;
     save_options();
+
+    if (option_key === 'selected_tool' && (value === 'drag' || previous_value === 'drag')) {
+        // drag tool does not show the grid, so update the selected rules.
+        return { render_selected: true };
+    }
 }
 
 /**

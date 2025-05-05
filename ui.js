@@ -54,7 +54,9 @@ document.addEventListener("keydown", (e) => {
             if (!binding.keys) continue;
             if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
                 e.preventDefault();
-                do_tool_setting(bindings_group.option_key, binding.value);
+                const result = do_tool_setting(bindings_group.option_key, binding.value);
+                if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+
                 update_tool_buttons(bindings_group.option_key, i);
                 return;
             }
@@ -341,7 +343,9 @@ function populate_with_options(group_container, option_key, options) {
         btn.textContent = label;
         btn.title = (keys) ? "Hotkey: " + prettify_hotkey_names(keys) : "No hotkey"; // tooltip
         btn.addEventListener("click", () => { 
-            do_tool_setting(option_key, value); 
+            const result = do_tool_setting(option_key, value); 
+            if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+
             const matching_buttons = group_container.querySelectorAll(`button[data-group="${option_key}"]`);
             matching_buttons.forEach(b => b.classList.remove("active"));
             btn.classList.add("active")
@@ -469,6 +473,29 @@ function create_rule_el(rule) {
     rule_el.className = "rule";
     rule_el.dataset.id = rule.id;
 
+    /** 
+     * @param {HTMLDivElement} el 
+     * @param {HTMLDivElement | null} outer_el - the outer element to check for hover
+     * @param {HTMLDivElement | null} outmost_el - the outmost element to check for hover
+     */
+    function add_pointer_events_for_hover(el, outer_el, outmost_el) {
+        el.addEventListener("pointerenter", () => {
+            rule_el.classList.remove("hovered");
+            rule_el.querySelectorAll(".hovered").forEach(el => el.classList.remove("hovered"));
+            el.classList.add("hovered");
+        });
+        el.addEventListener("pointerleave", (e) => {
+            el.classList.remove("hovered");
+            const el_at_pointer = document.elementFromPoint(e.clientX, e.clientY);
+            if (outmost_el && outmost_el === el_at_pointer) { 
+                outmost_el.classList.add("hovered");
+            } else if (outer_el && outer_el === el_at_pointer) { 
+                outer_el.classList.add("hovered");
+            }
+        });
+    }
+    add_pointer_events_for_hover(rule_el, null, null);
+
     // rule label
     const rule_label = document.createElement("label");
     let rule_label_text = rule.label.toString() || "?";
@@ -518,12 +545,14 @@ function create_rule_el(rule) {
         const part_el = document.createElement("div");
         part_el.className = "rule-part";
         part_el.dataset.id = part.id;
+        add_pointer_events_for_hover(part_el, rule_el, null);
 
         part.patterns.forEach((pattern, pat_index) => {
             const pattern_el = document.createElement("div");
             pattern_el.className = "rule-pattern";
             pattern_el.dataset.id = pattern.id;
             pattern_el.draggable = true;
+            add_pointer_events_for_hover(pattern_el, part_el, rule_el);
 
             const canvas = document.createElement("canvas");
             canvas.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
@@ -534,7 +563,7 @@ function create_rule_el(rule) {
             const is_selected = PROJECT.selected.type === 'pattern' && 
                 PROJECT.selected.paths.find(p => p.pattern_id === pattern.id);
 
-            if (is_selected) {
+            if (is_selected && OPTIONS.selected_tool !== 'drag') {
                 const grid = create_pattern_editor_el(pattern, canvas);
                 pattern_el.appendChild(grid);
             }
@@ -712,9 +741,11 @@ function update_play_pattern_el() {
 
     wrap_el.querySelectorAll(".grid").forEach(grid => grid.remove());
     if (PROJECT.selected.type === 'play') {
+        wrap_el.classList.add("selected");
+
+        if (OPTIONS.selected_tool === 'drag') return; // no grid for drag tool
         const grid = create_pattern_editor_el(pattern, canvas);
         wrap_el.appendChild(grid);
-        wrap_el.classList.add("selected");
     } else{
         wrap_el.classList.remove("selected");
     }
@@ -723,17 +754,17 @@ function update_play_pattern_el() {
 
 /**
  * Render elements again that lost or gained selection.
- * @param {Selection} old_sel - the old selection to update
- * @param {Selection} new_sel - the new selection to update
+ * @param {Selection} old_sel - the existing selection to update
+ * @param {Selection | null} new_sel - the new selection to update
  * @returns {void}
  */
 function update_selected_els(old_sel, new_sel) {
     // re-render play pattern
-    if (old_sel.type === 'play' || new_sel.type === 'play') update_play_pattern_el();
+    if (old_sel.type === 'play' || new_sel?.type === 'play') update_play_pattern_el();
 
     // collect rule IDs to re-render
     const old_rule_ids = new Set(old_sel.paths.map(p => p.rule_id).filter(Boolean));
-    const new_rule_ids = new Set(new_sel.paths.map(p => p.rule_id).filter(Boolean));
+    const new_rule_ids = new_sel ? new Set(new_sel.paths.map(p => p.rule_id).filter(Boolean)) : new Set();
     const all_rule_ids = new Set([...old_rule_ids, ...new_rule_ids]);
     
     for (const rule_id of all_rule_ids) {

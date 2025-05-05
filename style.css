@@ -185,18 +185,23 @@ button:active {
 }
 .rule-part label { /* the arrow between parts */
     font-size: 1em;
+    pointer-events: none;
 }
 .rule-pattern {
     position: relative;
     outline: #666 solid 1px;
 }
-.rule.selected, .rule-part.selected, .rule-pattern.selected {
-    outline: 1px solid #0ff;
-    z-index: 20;
+.rule.hovered, .rule-part.hovered, .rule-pattern.hovered {
+    outline: 1px solid #999;
+    z-index: 18;
 }
 .rule.drop-target, .rule-part.drop-target, .rule-pattern.drop-target {
     outline: 1px solid #ddd;
     z-index: 19;
+}
+.rule.selected, .rule-part.selected, .rule-pattern.selected {
+    outline: 1px solid #0ff;
+    z-index: 20;
 }
 .rule-pattern > canvas, .rule-pattern > .grid {
     image-rendering: pixelated;
@@ -206,6 +211,7 @@ button:active {
 .rule-label, .rule_content * {
     user-select: none;
     -webkit-user-select: none;
+    pointer-events: none;
 }
 
 /* play screen */
@@ -217,6 +223,9 @@ button:active {
 .screen-wrap {
     position: relative;
     outline: #666 solid 1px;
+}
+.screen-wrap:hover {
+    outline: 1px solid #999;
 }
 .screen-wrap.selected {
     outline: 1px solid #0ff;
@@ -231,9 +240,7 @@ button:active {
 /* shared */
 .rule-pattern, .screen-wrap {
     background-color: #333;
-    background-image:
-        linear-gradient(to top left , transparent 0%, transparent calc(50% - 0.8px),#555 50%, transparent calc(50% + 0.8px), transparent 100%),
-        linear-gradient(to top right, transparent 0%, transparent calc(50% - 0.8px),#555 50%, transparent calc(50% + 0.8px), transparent 100%);
+    background-image: radial-gradient(circle at 50% 50%, #555 25%, transparent 25%);
     background-size: calc(var(--pixel-scale) * 1px) calc(var(--pixel-scale) * 1px);
     cursor: pointer;
     user-select: none;
