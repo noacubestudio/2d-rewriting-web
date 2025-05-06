@@ -541,7 +541,7 @@ function create_rule_el(rule) {
     if (rule.keybind) {
         const rule_keybind = document.createElement("label");
         rule_keybind.className = "rule-keybind-label";
-        rule_keybind.textContent = "Keybind: " + (rule.rotate ? '→, ↓, ←, ↑' : 'X');
+        rule_keybind.textContent = "Keybind: " + (rule.rotate ? '→ (↓, ←, ↑)' : 'X');
         rule_keybind.title = "This rule is triggered by key input";
         rule_content.appendChild(rule_keybind);
     }

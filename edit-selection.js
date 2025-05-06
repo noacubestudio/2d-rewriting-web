@@ -364,6 +364,9 @@ export function clear_selection(sel) {
                 id: generate_id('part'),
                 patterns: [get_blank_pattern(), get_blank_pattern()]
             }];
+            // reset certain properties
+            rule.comment = undefined;
+            rule.keybind = undefined;
             output.render_ids.add(rule.id);
         });
     } else return; // should not happen

@@ -126,7 +126,7 @@ export function do_action(action, id, render_fn) {
         return;
     }
 
-    if (id === 'run' || id === 'run_all' || id === 'input') {
+    if (id === 'run' || id === 'run_all' || id === 'run_after_change' || id === 'input') {
         // change the play pattern.
         const previous_state = structuredClone(PROJECT.play_pattern);
         const stats = action(PROJECT.selected);
@@ -148,11 +148,8 @@ export function do_action(action, id, render_fn) {
         if (application_count < 1) return; // nothing changed
         render_fn("play", null);
 
-        // add the state before the rules ran to the undo stack.
-        // if rules only ran after another action, then don't push the state again.
-        // this way a single undo will also undo the input action, such as drawing.
-        const last_action_target = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
-        if (OPTIONS.run_after_change && last_action_target === "play") return;
+        // if ran manually, save the state for undo
+        if (id === 'run_after_change') return;
         push_to_undo_stack(true, previous_state, undefined);
         return;
     }
@@ -183,7 +180,7 @@ export function do_action(action, id, render_fn) {
         if (OPTIONS.run_after_change && play_selected) {
             console.log("Running after change...");
             const action_fn = ACTIONS.find(a => a.id === 'run_all')?.action;
-            if (action_fn) do_action(action_fn, 'run_all', render_fn);
+            if (action_fn) do_action(action_fn, 'run_after_change', render_fn);
         }
         return;
     } 
@@ -655,7 +652,7 @@ export function finish_drawing(render_fn) {
         // run the action after drawing
         console.log("Running after drawing...");
         const action_fn = ACTIONS.find(a => a.id === 'run_all')?.action;
-        if (action_fn) do_action(action_fn, 'run_all', render_fn);
+        if (action_fn) do_action(action_fn, 'run_after_change', render_fn);
     }
 }
 
