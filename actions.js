@@ -30,8 +30,8 @@ import { move_selection_to_part } from "./edit-selection.js";
 
 /** @type {Action[]} */
 export const ACTIONS = [
-    { id: "run"      , hint: "✅ Run Selected", keys: ["Enter"                ], action: /** @param {Selection} s */ (s) => apply_rules(s) },
-    { id: "run_all"  , hint: "✅ Run All"     , keys: [" "                    ], action: () => apply_rules(undefined) },
+    { id: "run"      , hint: "✅ Run Selected", keys: ["Enter"                ], action: /** @param {Selection} s */ (s) => apply_rules(s, null) },
+    { id: "run_all"  , hint: "✅ Run All"     , keys: [" "                    ], action: () => apply_rules(null, null) },
 
     // actions that are not undoable themselves. render callbacks for most other functions are in do_action()
     { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
@@ -51,11 +51,18 @@ export const ACTIONS = [
     { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["Alt", "r"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'rotate') },
     { id: "rule_flag", hint: "☑️ Group"       , keys: ["Alt", "g"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'part_of_group') },
     { id: "rule_flag", hint: "☑️ Comment"     , keys: ["Alt", "c"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'show_comment') },
+    { id: "rule_flag", hint: "☑️ Keybind"     , keys: ["Alt", "k"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'keybind') },
 
-    { id: "swap"     , hint: null             , keys: ["ArrowUp"              ], action: /** @param {Selection} s */ (s) => reorder_selection(s,-1) },
-    { id: "swap"     , hint: null             , keys: ["ArrowDown"            ], action: /** @param {Selection} s */ (s) => reorder_selection(s,1) },
-    { id: "swap"     , hint: "⬅️ Swap Back"   , keys: ["ArrowLeft"            ], action: /** @param {Selection} s */ (s) => reorder_selection(s,-1) },
-    { id: "swap"     , hint: "➡️ Swap Next"   , keys: ["ArrowRight"           ], action: /** @param {Selection} s */ (s) => reorder_selection(s,1) },
+    { id: "input"    , hint: "⬅️ Left"        , keys: ["ArrowLeft"            ], action: () => apply_rules(null, "left") },
+    { id: "input"    , hint: "➡️ Right"       , keys: ["ArrowRight"           ], action: () => apply_rules(null, "right") },
+    { id: "input"    , hint: "⬆️ Up"          , keys: ["ArrowUp"              ], action: () => apply_rules(null, "up") },
+    { id: "input"    , hint: "⬇️ Down"        , keys: ["ArrowDown"            ], action: () => apply_rules(null, "down") },
+    { id: "input"    , hint: "❎ Action"      , keys: ["x"                    ], action: () => apply_rules(null, "x") },
+
+    { id: "swap"     , hint: null             , keys: ["ArrowUp"    , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,-1) },
+    { id: "swap"     , hint: null             , keys: ["ArrowDown"  , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,1) },
+    { id: "swap"     , hint: "⬅️ Swap Back"   , keys: ["ArrowLeft"  , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,-1) },
+    { id: "swap"     , hint: "➡️ Swap Next"   , keys: ["ArrowRight" , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,1) },
     { id: "resize"   , hint: "➖ Width"       , keys: ["ArrowLeft" , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_selection(s,-1,0) },
     { id: "resize"   , hint: "➕ Width"       , keys: ["ArrowRight", "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_selection(s,1,0) },
     { id: "resize"   , hint: "➖ Height"      , keys: ["ArrowUp"   , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_selection(s,0,-1) },
@@ -71,7 +78,7 @@ export const ACTIONS = [
 export const ACTION_BUTTON_VISIBILITY = {
     nothing_selected:   ['save', 'load', 'new', 'scale', 'settings'],
     rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag'],
-    play_selected:      ['savepng'],
+    play_selected:      ['savepng', 'input'],
     something_selected: ['resize', 'rotate', 'flip', 'shift', 'clear'],
 };
 const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settings', 'undo'];
@@ -118,8 +125,8 @@ export function do_action(action, id, render_fn) {
         action(render_fn);
         return;
     }
-    
-    if (id === 'run' || id === 'run_all') {
+
+    if (id === 'run' || id === 'run_all' || id === 'input') {
         // change the play pattern.
         const previous_state = structuredClone(PROJECT.play_pattern);
         const stats = action(PROJECT.selected);
@@ -245,9 +252,10 @@ function undo_action(render_fn) {
 
 /** 
  * Run the rules on the play pattern.
- * @param {Selection | undefined} sel
+ * @param {Selection | null} sel
+ * @param {"left" | "right" | "up" | "down" | "x" | null} input - key input that will trigger certain rules
  */
-export function apply_rules(sel) {
+export function apply_rules(sel, input) {
     const group_loop_limit = RULE_APPLICATION_LIMIT;
     const step_size = PROJECT.tile_size; // the size of the step to take when applying rules
     const stats = {
@@ -261,7 +269,7 @@ export function apply_rules(sel) {
 
     // if there are certain rules selected, only apply those rules.
     // return groups of rules (id, rules) to be applied.
-    const ruleset = process_rules(PROJECT.rules, sel);
+    const ruleset = process_rules(PROJECT.rules, sel, input);
     if (!ruleset) { 
         console.warn("No rules to apply.");
         return; // no rules to apply
@@ -310,10 +318,11 @@ export function apply_rules(sel) {
 
 /**
  * @param {Rule[]} rules 
- * @param {Selection | undefined} sel
+ * @param {Selection | null} sel
+ * @param {"left" | "right" | "up" | "down" | "x" | null} input
  * @return {Processed_Rule_Group[]} - array of rule groups to be applied
  */
-function process_rules(rules, sel) {
+function process_rules(rules, sel, input) {
     /** @type {Processed_Rule_Group[]} */
     const ruleset = [];
 
@@ -340,6 +349,11 @@ function process_rules(rules, sel) {
         // skip if the rule is not selected
         if (selected_rule_ids && !selected_rule_ids.has(rule.id)) return;
 
+        // skip if rule is key controlled but no input was given
+        const missing_x_input = (input !== 'x' && rule.keybind && !rule.rotate);
+        const missing_dir_input = ((!input || input === 'x') && rule.keybind && rule.rotate);
+        if (!selected_rule_ids && (missing_x_input || missing_dir_input)) return;
+
         // start a new group if the rule is not part of one already.
         // if it is part, keep adding to the last group.
         // ignore the bigger groups when only some rules are selected because it won't make sense
@@ -347,13 +361,25 @@ function process_rules(rules, sel) {
         const group = (rule.part_of_group && !sel) ? ruleset[ruleset.length - 1] : { id: rule.id, rules: [] };
         group.rules.push(rule);
 
-        // add other 3 rotated versions of the rule
         if (rule.rotate) {
-            let next_rule_version = rule;
-            for (let i = 0; i < 3; i++) {
-                next_rule_version = structuredClone(next_rule_version);
-                get_rule_patterns(next_rule_version).forEach((p) => { rotate_pattern(p); });
-                group.rules.push(next_rule_version);
+            if (rule.keybind && !selected_rule_ids) {
+                // if there is a key input, the specific rotation that matches should stay.
+                group.rules.pop();
+                const dir_to_index = { right: 0, down: 1, left: 2, up: 3 };
+                const keep_index = (input && input !== 'x') ? dir_to_index[input] : null;
+                if (keep_index !== null) {
+                    const correct_rule_version = structuredClone(rule);
+                    get_rule_patterns(correct_rule_version).forEach((p) => { rotate_pattern(p, keep_index); });
+                    group.rules.push(correct_rule_version);
+                }
+            } else {
+                // add other 3 rotated versions of the rule
+                let next_rule_version = rule;
+                for (let i = 0; i < 3; i++) {
+                    next_rule_version = structuredClone(next_rule_version);
+                    get_rule_patterns(next_rule_version).forEach((p) => { rotate_pattern(p); });
+                    group.rules.push(next_rule_version);
+                }
             }
         }
         if (!rule.part_of_group || sel) ruleset.push(group); // add new group to the ruleset

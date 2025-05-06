@@ -69,13 +69,14 @@ load_options();
  * @property {boolean} [part_of_group]
  * @property {boolean} [rotate] - whether to expand to all 4 rotations
  * @property {boolean} [show_comment]
+ * @property {boolean} [keybind] - rule is triggered by key input
  * @property {string} [comment]
  * @property {Part[]} parts
 */
 
 /**
  * Boolean flags in rule objects. These can be toggled.
- * @typedef {"part_of_group" | "rotate" | "show_comment"} Rule_Flag_Key
+ * @typedef {"part_of_group" | "rotate" | "show_comment" | "keybind"} Rule_Flag_Key
 */
 
 /**
