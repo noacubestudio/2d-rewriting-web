@@ -185,7 +185,8 @@ export function do_action(action, id, render_fn) {
 }
 
 /**
- * When an action/ drawing on a pattern takes place
+ * When an action/ drawing on a pattern takes place, save all rule patterns + selection or the play pattern to the right stack.
+ * TODO: could only push changed patterns and also their IDs for partial redraws.
  * @param {boolean} play_selected 
  * @param {Pattern | Rule[]} state_to_push 
  * @param {Selection | undefined} selection_to_push 

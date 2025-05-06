@@ -700,6 +700,8 @@ function add_rule_highlight(sel_path, rule_el) {
 
 function update_all_rule_els() {
     if (!RULES_CONTAINER_EL) throw new Error("No rules container found");
+    const was_scroll_position = RULES_CONTAINER_EL.scrollTop;
+
     RULES_CONTAINER_EL.innerHTML = "";
     PROJECT.rules.forEach((rule, index) => {
         rule.label = index + 1;
@@ -707,6 +709,9 @@ function update_all_rule_els() {
         RULES_CONTAINER_EL.appendChild(rule_el);
     });
     // console.log(`Rendered all ${PROJECT.rules.length} rules`);
+
+    // scroll to the previous position
+    RULES_CONTAINER_EL.scrollTop = Math.min(was_scroll_position, RULES_CONTAINER_EL.scrollHeight);
 }
 
 /** @param {string} rule_id */
