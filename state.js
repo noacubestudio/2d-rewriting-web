@@ -1,5 +1,6 @@
 export const RULE_APPLICATION_LIMIT = 10000;
-export const UNDO_STACK_LIMIT = 64;
+export const UNDO_STACK_LIMIT_RULES = 64;
+export const UNDO_STACK_LIMIT_PLAY = 256;
 export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#036965"];
 
 /**
@@ -68,6 +69,7 @@ load_options();
  * @property {number} label - generated label for the rule
  * @property {boolean} [part_of_group]
  * @property {boolean} [rotate] - whether to expand to all 4 rotations
+ * @property {boolean} [mirror] - whether to expand to all 4 flips (when combined with rotation, makes for 8 total patterns)
  * @property {boolean} [show_comment]
  * @property {boolean} [keybind] - rule is triggered by key input
  * @property {string} [comment]
@@ -76,7 +78,7 @@ load_options();
 
 /**
  * Boolean flags in rule objects. These can be toggled.
- * @typedef {"part_of_group" | "rotate" | "show_comment" | "keybind"} Rule_Flag_Key
+ * @typedef {"part_of_group" | "rotate" | "show_comment" | "keybind" | "mirror"} Rule_Flag_Key
 */
 
 /**

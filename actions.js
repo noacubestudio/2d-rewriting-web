@@ -1,7 +1,7 @@
-import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, UNDO_STACK_LIMIT, RULE_APPLICATION_LIMIT } from "./state.js";
+import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, UNDO_STACK_LIMIT_PLAY, UNDO_STACK_LIMIT_RULES, RULE_APPLICATION_LIMIT } from "./state.js";
 import { clear_undo_stack, generate_id, get_blank_pattern, selections_equal } from "./state.js";
 
-import { draw_in_pattern, rotate_pattern, apply_rule } from "./edit-pattern.js";
+import { draw_in_pattern, rotate_pattern, flip_pattern, apply_rule } from "./edit-pattern.js";
 
 import { get_selected_rule_patterns, get_selected_rule_objects } from "./edit-selection.js";
 import { toggle_rule_flag, duplicate_selection, delete_selection, clear_selection, reorder_selection, resize_patterns_in_selection, rotate_patterns_in_selection, flip_patterns_in_selection, shift_patterns_in_selection } from "./edit-selection.js";
@@ -49,6 +49,7 @@ export const ACTIONS = [
     { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: /** @param {Selection} s */ (s) => duplicate_selection(s) },
 
     { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["Alt", "r"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'rotate') },
+    { id: "rule_flag", hint: "☑️ Mirrors"     , keys: ["Alt", "m"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'mirror') },
     { id: "rule_flag", hint: "☑️ Group"       , keys: ["Alt", "g"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'part_of_group') },
     { id: "rule_flag", hint: "☑️ Comment"     , keys: ["Alt", "c"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'show_comment') },
     { id: "rule_flag", hint: "☑️ Keybind"     , keys: ["Alt", "k"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'keybind') },
@@ -142,7 +143,7 @@ export function do_action(action, id, render_fn) {
             console.warn(`Rule groups ${groups_that_hit_limit.join(', ')} reached the application limit of ${RULE_APPLICATION_LIMIT}`);
         }
         console.log(`${groups_application_count} of ${groups_application_count + groups_failed_count} groups applied.\n` 
-            + `In total, replaced ${application_count} time(s) and failed ${failed_count} time(s).`);
+            + `Checked ${stats.rules_count} rules, applied ${application_count} time(s) and failed ${failed_count} time(s).`);
         
         // react to changes
         if (application_count < 1) return; // nothing changed
@@ -170,6 +171,7 @@ export function do_action(action, id, render_fn) {
             render_fn("play", null);
         } else if (success.render_ids.size) {
             [...success.render_ids].forEach((id) => { render_fn("rules", { rule_id: id }); }); // re-render - or just remove if deleted
+            if (success.reordered) render_fn("rule-order", null); // make sure indices are correct
         } else {
             console.warn("Action occured, but no re-render specified");
         }
@@ -198,15 +200,16 @@ export function do_action(action, id, render_fn) {
 function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
     const undo_stack = play_selected ? UNDO_STACK.play_pattern : UNDO_STACK.rules;
     const undo_stack_type = play_selected ? 'play' : 'rules';
+    const undo_stack_limit = play_selected ? UNDO_STACK_LIMIT_PLAY : UNDO_STACK_LIMIT_RULES;
     // @ts-ignore
     undo_stack.push(state_to_push);
     UNDO_STACK.last_undo_stack_types.push(undo_stack_type);
-    if (undo_stack.length > UNDO_STACK_LIMIT) undo_stack.shift();
+    if (undo_stack.length > undo_stack_limit) undo_stack.shift();
 
     if (play_selected) return;
     // also push the selection to the undo stack
     UNDO_STACK.selected.push(selection_to_push || PROJECT.selected);
-    if (UNDO_STACK.selected.length > UNDO_STACK_LIMIT) UNDO_STACK.selected.shift();
+    if (UNDO_STACK.selected.length > undo_stack_limit) UNDO_STACK.selected.shift();
 }
 
 
@@ -256,6 +259,7 @@ export function apply_rules(sel, input) {
     const group_loop_limit = RULE_APPLICATION_LIMIT;
     const step_size = PROJECT.tile_size; // the size of the step to take when applying rules
     const stats = {
+        rules_count: 0,
         application_count: 0,
         failed_count: 0,
         groups_application_count: 0,
@@ -274,9 +278,7 @@ export function apply_rules(sel, input) {
 
     ruleset.forEach(({ id, rules }) => {
         // the id is the rule id that expanded into a group of rules.
-
         // loop each group of rules before going to the next group.
-        // currently, loops are only generated for rotated rules.
 
         let rule_index = 0;
         let group_application_count = 0;
@@ -302,6 +304,8 @@ export function apply_rules(sel, input) {
         } else {
             stats.groups_failed_count++;
         }
+
+        stats.rules_count += rules.length;
     });
 
     return stats;
@@ -332,16 +336,6 @@ function process_rules(rules, sel, input) {
         if (selected_rule_ids.size === 0) return [];
     }
 
-    /** 
-     * @param {Rule} rule
-     */
-    function get_rule_patterns(rule) {
-        /** @type {Pattern[]} */
-        const result = [];
-        rule.parts.forEach(p => p.patterns.forEach(pat => result.push(pat)));
-        return result;
-    }
-
     rules.forEach((rule) => {
         // skip if the rule is not selected
         if (selected_rule_ids && !selected_rule_ids.has(rule.id)) return;
@@ -351,37 +345,74 @@ function process_rules(rules, sel, input) {
         const missing_dir_input = ((!input || input === 'x') && rule.keybind && rule.rotate);
         if (!selected_rule_ids && (missing_x_input || missing_dir_input)) return;
 
-        // start a new group if the rule is not part of one already.
-        // if it is part, keep adding to the last group.
-        // ignore the bigger groups when only some rules are selected because it won't make sense
+        // if part of a group, don't make a new one. this feature is deactivated when the rule is selected for simplicity.
         /** @type {Processed_Rule_Group} */
         const group = (rule.part_of_group && !sel) ? ruleset[ruleset.length - 1] : { id: rule.id, rules: [] };
-        group.rules.push(rule);
 
-        if (rule.rotate) {
-            if (rule.keybind && !selected_rule_ids) {
-                // if there is a key input, the specific rotation that matches should stay.
-                group.rules.pop();
-                const dir_to_index = { right: 0, down: 1, left: 2, up: 3 };
-                const keep_index = (input && input !== 'x') ? dir_to_index[input] : null;
-                if (keep_index !== null) {
-                    const correct_rule_version = structuredClone(rule);
-                    get_rule_patterns(correct_rule_version).forEach((p) => { rotate_pattern(p, keep_index); });
-                    group.rules.push(correct_rule_version);
-                }
-            } else {
-                // add other 3 rotated versions of the rule
-                let next_rule_version = rule;
-                for (let i = 0; i < 3; i++) {
-                    next_rule_version = structuredClone(next_rule_version);
-                    get_rule_patterns(next_rule_version).forEach((p) => { rotate_pattern(p); });
-                    group.rules.push(next_rule_version);
-                }
-            }
-        }
+        const filter_input = (rule.keybind && !selected_rule_ids) ? input : null;
+        expand_rule_group(group, rule, filter_input);
+
         if (!rule.part_of_group || sel) ruleset.push(group); // add new group to the ruleset
     });
     return ruleset;
+}
+
+/**
+ * push the right rotations/ mirrors of the rule to the group.
+ * @param {Processed_Rule_Group} group 
+ * @param {Rule} rule
+ * @param {"left" | "right" | "up" | "down" | "x" | null} filter_input
+ */
+function expand_rule_group(group, rule, filter_input) {
+    if (rule.rotate) {
+        if (filter_input) {
+            // if there is a key input, add only the specific rotation that matches
+            const dir_to_index = { right: 0, down: 1, left: 2, up: 3 };
+            const keep_index = (filter_input !== 'x') ? dir_to_index[filter_input] : null;
+            if (keep_index === null) return;
+            
+            const correct_rule_version = structuredClone(rule);
+            get_rule_patterns(correct_rule_version).forEach((p) => { rotate_pattern(p, keep_index); });
+            group.rules.push(correct_rule_version);
+            
+            if (rule.mirror) {
+                console.warn("Rule is mirrored, but not rotated in all directions at once. This is not supported yet.");
+            }
+        } else {
+            // push and add other 3 rotated versions of the rule
+            group.rules.push(rule);
+            let next_rule_version = rule;
+            for (let i = 0; i < 3; i++) {
+                next_rule_version = structuredClone(next_rule_version);
+                get_rule_patterns(next_rule_version).forEach((p) => { rotate_pattern(p); });
+                group.rules.push(next_rule_version);
+            }
+            // push mirrored versions of each
+            if (rule.mirror) {
+                const start_index = group.rules.length - 4; // the last 4 rules are the rotated ones
+                for (let i = 0; i < 4; i++) {
+                    const rule_to_mirror = structuredClone(group.rules[start_index + i]);
+                    get_rule_patterns(rule_to_mirror).forEach((p) => { flip_pattern(p); });
+                    group.rules.push(rule_to_mirror);
+                }
+            }
+        }
+    } else if (rule.mirror) {
+        group.rules.push(rule);
+        console.warn("Rule is mirrored, but not rotated. This is not supported yet.");
+    } else {
+        group.rules.push(rule);
+    }
+
+    /** 
+     * @param {Rule} rule
+     */
+    function get_rule_patterns(rule) {
+        /** @type {Pattern[]} */
+        const result = [];
+        rule.parts.forEach(p => p.patterns.forEach(pat => result.push(pat)));
+        return result;
+    }
 }
 
 

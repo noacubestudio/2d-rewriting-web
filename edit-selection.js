@@ -91,6 +91,7 @@ function keep_rules_valid() {
  * @property {Selection} new_selected - new selection object to be set in the state
  * @property {Set<string>} render_ids - set of rule ids to be rendered
  * @property {boolean} render_play - whether to render the play pattern
+ * @property {boolean} [reordered] - whether rules were reodered
 */
 
 /** 
@@ -101,6 +102,7 @@ export function duplicate_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     output.new_selected.paths = [];
 
@@ -130,6 +132,7 @@ export function duplicate_selection(sel) {
             output.new_selected.paths.push({ rule_id: new_rule.id });
             output.render_ids.add(new_rule.id);
             output.render_ids.add(rule.id); // also render original to deselect
+            output.reordered = true;
         });
     } else return; // should not happen
     return output;
@@ -143,6 +146,7 @@ export function delete_selection(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     output.new_selected.paths = [];
 
@@ -198,6 +202,7 @@ export function delete_selection(sel) {
                 output.new_selected.paths.push(sel_path);
                 output.render_ids.add(PROJECT.rules[index - 1].id); // select in DOM
             }
+            output.reordered = true;
         });
         keep_rules_valid(); // deletion can cause other rules to move
     } else return; // should not happen
@@ -213,6 +218,7 @@ export function reorder_selection(sel, direction) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     // TODO: weird things could happen with adjacent selected objects being reordered at the same time.
@@ -243,6 +249,7 @@ export function reorder_selection(sel, direction) {
             [PROJECT.rules[index], PROJECT.rules[target]] = [PROJECT.rules[target], PROJECT.rules[index]];
             output.render_ids.add(PROJECT.rules[index].id);
             output.render_ids.add(PROJECT.rules[target].id); // render both to swap
+            output.reordered = true;
         });
         keep_rules_valid(); // movement can cause rules to become invalid in some cases
     } else return; // should not happen
@@ -258,6 +265,7 @@ export function move_selection_to_part(sel, dest_sel) {
     // for now, only handle moving patterns to a part
     if (sel.type !== 'pattern' && sel.type !== 'play') return;
 
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
@@ -332,6 +340,7 @@ export function move_selection_to_part(sel, dest_sel) {
 export function clear_selection(sel) {
     if (sel.type === null) return;
 
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
@@ -381,6 +390,7 @@ export function clear_selection(sel) {
 export function toggle_rule_flag(sel, flag) {
     if (sel.type === null || sel.type === 'play') return;
 
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     const rules = get_selected_rule_objects(sel);
 
@@ -399,6 +409,7 @@ export function toggle_rule_flag(sel, flag) {
 export function rotate_patterns_in_selection(sel) {
     if (sel.type === null) return;
 
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
@@ -439,6 +450,7 @@ export function rotate_patterns_in_selection(sel) {
 export function resize_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
     const tile_size = PROJECT.tile_size;
 
@@ -482,6 +494,7 @@ export function resize_patterns_in_selection(sel, x_direction, y_direction) {
 export function shift_patterns_in_selection(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {
@@ -510,6 +523,7 @@ export function shift_patterns_in_selection(sel, x_direction, y_direction) {
 export function flip_patterns_in_selection(sel, h_bool, v_bool) {
     if (sel.type === null) return;
 
+    /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
     if (sel.type === 'play') {

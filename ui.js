@@ -249,8 +249,8 @@ setup_dialogs();
 
 /**
  * @callback render_callback
- * @param {"selection" | "play" | "rules" | "palette"} change_type
- * @param {{ rule_id?: string, old_sel?: Selection, new_sel?: Selection } | null} data
+ * @param {"selection" | "play" | "rules" | "palette" | "rule-order"} change_type
+ * @param {{ rule_id?: string, old_sel?: Selection, new_sel?: Selection} | null} data
  * @returns {void}
 */
 
@@ -269,10 +269,13 @@ function render_callback(change_type, data) {
 
     } else if (change_type === "rules") {
         if (data && data.rule_id) {
-            update_rule_el_by_id(data.rule_id); 
+            update_rule_el_by_id(data.rule_id); // update only the rule that changed
             return;
         } 
         update_all_rule_els();
+
+    } else if (change_type === "rule-order") {
+        update_all_rule_indices();
 
     } else if (change_type === "palette") {
         update_tool_button_set('selected_palette_value');
@@ -496,17 +499,39 @@ function create_rule_el(rule) {
     }
     add_pointer_events_for_hover(rule_el, null, null);
 
-    // rule label
-    const rule_label = document.createElement("label");
-    let rule_label_text = rule.label.toString() || "?";
-    if (rule.rotate) {
-        rule_label_text += "x4";
-        rule_el.classList.add("flag-rotate");
+    // rule labels
+    const rule_label_div = document.createElement("div");
+    rule_label_div.className = "rule-label-container";
+
+    const rule_index_label = document.createElement("label");
+    rule_index_label.className = "rule-label";
+    rule_index_label.textContent = rule.label.toString() || "?";
+    rule_label_div.appendChild(rule_index_label);
+
+    // rule details
+    const rule_expanded_count = (rule.rotate && rule.mirror) ? 8 : (rule.rotate || rule.mirror) ? 4 : 1;
+    if (rule_expanded_count > 1) {
+        const rule_details_label = document.createElement("label");
+        rule_details_label.className = "rule-label";
+
+        let rule_details_text = "";
+        if (rule.rotate) {
+            rule_details_text += "r";
+            rule_el.classList.add("flag-rotate");
+        }
+        if (rule.mirror) {
+            rule_details_text += "m";
+            rule_el.classList.add("flag-mirror");
+        }
+        rule_details_text += `${rule_expanded_count}`;
+        rule_details_label.textContent = rule_details_text;
+
+        rule_label_div.appendChild(rule_details_label);
     }
+    rule_el.appendChild(rule_label_div);
+
+    // group
     if (rule.part_of_group) rule_el.classList.add("flag-group");
-    rule_label.textContent = rule_label_text;
-    rule_label.className = "rule-label";
-    rule_el.appendChild(rule_label);
 
     // rule content
     const rule_content = document.createElement("div");
@@ -721,6 +746,14 @@ function update_all_rule_els() {
 
     // scroll to the previous position
     RULES_CONTAINER_EL.scrollTop = Math.min(was_scroll_position, RULES_CONTAINER_EL.scrollHeight);
+}
+
+function update_all_rule_indices() {
+    if (!RULES_CONTAINER_EL) throw new Error("No rules container found");
+    RULES_CONTAINER_EL.querySelectorAll(".rule").forEach((rule_el, index) => {
+        const rule_label = rule_el.querySelector(".rule-label");
+        if (rule_label) rule_label.textContent = (index + 1).toString() || "?";
+    });
 }
 
 /** @param {string} rule_id */
