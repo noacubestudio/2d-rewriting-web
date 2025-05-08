@@ -435,8 +435,32 @@ function expand_rule_group(group, rule, filter_input) {
             }
         }
     } else if (rule.mirror) {
-        group.rules.push(rule);
-        console.warn("Rule is mirrored, but not rotated. This is not supported yet.");
+        if (filter_input) {
+            if (filter_input === 'right') {
+                group.rules.push(rule);
+            } else if (filter_input === 'left') {
+                const left_rule = structuredClone(rule);
+                get_rule_patterns(left_rule).forEach((p) => { flip_pattern(p, true); });
+                group.rules.push(left_rule);
+            } else {
+                console.log("A rule was ignored because mirrored rules currently only support left and right when keybound.");
+            }
+        } else {
+            group.rules.push(rule);
+
+            const v_version = structuredClone(rule);
+            get_rule_patterns(v_version).forEach((p) => { flip_pattern(p); });
+    
+            const h_version = structuredClone(rule);
+            get_rule_patterns(h_version).forEach((p) => { flip_pattern(p, true); });
+    
+            const vh_version = structuredClone(v_version);
+            get_rule_patterns(vh_version).forEach((p) => { flip_pattern(p, true); });
+    
+            group.rules.push(v_version);
+            group.rules.push(h_version);
+            group.rules.push(vh_version);
+        }
     } else {
         group.rules.push(rule);
     }

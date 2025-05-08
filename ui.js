@@ -205,7 +205,17 @@ function setup_dialogs() {
         palette: /** @type {HTMLInputElement} */(document.getElementById("palette-input")),
         animation_speed: /** @type {HTMLInputElement} */(document.getElementById("animation-speed-input")),
     }
+
+    // when opened, update
+    openedDialog(dialog_els.new_project, () => {
+        input_els.tile_size.value = OPTIONS.default_tile_size.toString();
+    });
+    openedDialog(dialog_els.edit_project, () => {
+        input_els.palette.value = PROJECT.palette.join(" ");
+        input_els.animation_speed.value = OPTIONS.animation_speed.toString();
+    });
     
+    // when closed, check if ok was pressed and save the values
     dialog_els.new_project.addEventListener("close", () => {
         if (dialog_els.new_project.returnValue === "ok") {
             const new_tile_size = +input_els.tile_size.value;
@@ -222,10 +232,6 @@ function setup_dialogs() {
             init_starter_project(render_callback);
         }
     });
-    
-    input_els.palette.value = OPTIONS.default_palette.join(" ");
-    input_els.animation_speed.value = OPTIONS.animation_speed.toString();
-
     dialog_els.edit_project.addEventListener("close", () => {
         if (dialog_els.edit_project.returnValue === "ok") {
             const new_palette = input_els.palette.value.split(" ").map(c => c.trim()).filter(c => c.length > 0);
@@ -265,6 +271,17 @@ function setup_dialogs() {
             update_all_rule_els();
         }
     });
+
+    /**
+     * hacky, because there is no open event for dialog elements.
+     * @param {HTMLDialogElement} el 
+     * @param {Function} fn 
+     */
+    function openedDialog(el, fn) {
+        new MutationObserver(() => {
+            if (el.open) fn();
+        }).observe(el, { attributes: true, attributeFilter: ['open'] });
+    }
 }
 setup_dialogs();
 
