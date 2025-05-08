@@ -164,24 +164,29 @@ button:active {
     align-items: stretch;
 }
 .rule-label-container, .rule-comment, .rule-keybind-label {
-    padding: 4px 8px;
     color: #aaa;
     cursor: pointer;
 }
 .rule-label-container {
+    padding: calc(4px + 0.075em) 6px;
     display: flex;
     flex-direction: row;
-    gap: 4px;
+    gap: 2px;
     font-size: 0.85em;
+    pointer-events: none;
 }
 .rule-comment, .rule-keybind-label {
+    padding: 4px 8px 4px 1px;
     background-color: transparent;
     color: #ddd;
     width: 100%;
     min-width: 60px;
 }
 .rule-keybind-label {
-    color: #0ff;
+    pointer-events: none;
+}
+.rule-comment {
+    font-style: italic;
 }
 .rule-part {
     background: #333;

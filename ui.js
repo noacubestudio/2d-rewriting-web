@@ -516,14 +516,14 @@ function create_rule_el(rule) {
 
         let rule_details_text = "";
         if (rule.rotate) {
-            rule_details_text += "r";
+            rule_details_text += "+";
             rule_el.classList.add("flag-rotate");
         }
         if (rule.mirror) {
-            rule_details_text += "m";
+            rule_details_text += "%";
             rule_el.classList.add("flag-mirror");
         }
-        rule_details_text += `${rule_expanded_count}`;
+        //rule_details_text += `${rule_expanded_count}`;
         rule_details_label.textContent = rule_details_text;
 
         rule_label_div.appendChild(rule_details_label);
@@ -556,7 +556,7 @@ function create_rule_el(rule) {
             if (!ghost) throw new Error("No ghost input found");
             ghost.textContent = input.value || input.placeholder || " ";
             ghost.style.font = window.getComputedStyle(input).font;
-            input.style.width = (ghost.scrollWidth + 16) + "px"; // padding
+            input.style.width = (ghost.scrollWidth + 14) + "px"; // padding
         }
         rule_content.appendChild(rule_comment);
         resize_input(rule_comment); // initial
@@ -566,7 +566,7 @@ function create_rule_el(rule) {
     if (rule.keybind) {
         const rule_keybind = document.createElement("label");
         rule_keybind.className = "rule-keybind-label";
-        rule_keybind.textContent = "Keybind: " + (rule.rotate ? '→ (↓, ←, ↑)' : 'X');
+        rule_keybind.textContent = "on key: " + (rule.rotate ? '→ (↓, ←, ↑)' : 'X');
         rule_keybind.title = "This rule is triggered by key input";
         rule_content.appendChild(rule_keybind);
     }
