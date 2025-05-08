@@ -103,7 +103,7 @@ button:active {
     border-bottom: #666 solid 1px;
     flex-shrink: 0;
     gap: 10px;
-    overflow-x: scroll;
+    overflow-x: auto;
 }
 .tool-settings > .options-container {
     display: flex;
@@ -163,7 +163,7 @@ button:active {
     flex-direction: column;
     align-items: stretch;
 }
-.rule-label-container, .rule-comment, .rule-keybind-label {
+.rule-label-container, .rule-comment, .rule-io-label {
     color: #aaa;
     cursor: pointer;
 }
@@ -175,14 +175,14 @@ button:active {
     font-size: 0.85em;
     pointer-events: none;
 }
-.rule-comment, .rule-keybind-label {
+.rule-comment, .rule-io-label {
     padding: 4px 8px 4px 1px;
     background-color: transparent;
     color: #ddd;
     width: 100%;
     min-width: 60px;
 }
-.rule-keybind-label {
+.rule-io-label {
     pointer-events: none;
 }
 .rule-comment {

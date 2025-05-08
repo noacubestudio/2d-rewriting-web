@@ -2,6 +2,7 @@ export const RULE_APPLICATION_LIMIT = 10000;
 export const UNDO_STACK_LIMIT_RULES = 64;
 export const UNDO_STACK_LIMIT_PLAY = 256;
 export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#036965"];
+export const DEFAULT_ANIMATION_SPEED = 100; // milliseconds
 
 /**
  * @typedef {Object} Options
@@ -11,6 +12,7 @@ export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#03696
  * @property {boolean} run_after_change - whether to run rules after changing the play pattern
  * @property {number} pixel_scale - scale of the pixels in the editor
  * @property {number} default_tile_size - default size of the tile in pixels
+ * @property {number} animation_speed - speed of the animation in milliseconds
 */
 
 /** @type {Options} */
@@ -21,6 +23,7 @@ export const OPTIONS = {
     run_after_change: false,
     pixel_scale: 14,
     default_tile_size: 5,
+    animation_speed: DEFAULT_ANIMATION_SPEED,
 }
 
 // load options from localstorage if possible
@@ -68,6 +71,7 @@ load_options();
  * @property {string} id - unique identifier for the rule
  * @property {number} label - generated label for the rule
  * @property {boolean} [part_of_group]
+ * @property {boolean} [trigger_animation_loop] - run rules again after a delay (if this one runs)
  * @property {boolean} [rotate] - whether to expand to all 4 rotations
  * @property {boolean} [mirror] - whether to expand to all 4 flips (when combined with rotation, makes for 8 total patterns)
  * @property {boolean} [show_comment]
@@ -78,7 +82,7 @@ load_options();
 
 /**
  * Boolean flags in rule objects. These can be toggled.
- * @typedef {"part_of_group" | "rotate" | "show_comment" | "keybind" | "mirror"} Rule_Flag_Key
+ * @typedef {"part_of_group" | "rotate" | "show_comment" | "keybind" | "mirror" | "trigger_animation_loop"} Rule_Flag_Key
 */
 
 /**
@@ -153,6 +157,8 @@ clear_undo_stack();
  * @property {number | null} draw_y - the y coordinate of the last pixel in the brushstroke
  * @property {Pattern[]} draw_patterns - patterns that are being drawn to, chosen at the start of drawing
  * @property {number[][][]} draw_pixels_cloned - their pixels before drawing
+ * 
+ * @property {DOMHighResTimeStamp | null} next_timestamp - whether the animation is currently running
  * @property {string[]} text_contrast_palette - generated palette used for text contrast
 */
 
@@ -166,6 +172,8 @@ export const UI_STATE = {
     draw_y: null,
     draw_patterns: [],     
     draw_pixels_cloned: [],
+
+    next_timestamp: null,
     text_contrast_palette: [],
 };
 

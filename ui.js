@@ -1,8 +1,8 @@
 import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
-import { clear_project_obj, clear_undo_stack, selections_equal, INITIAL_DEFAULT_PALETTE } from "./state.js";
+import { clear_project_obj, clear_undo_stack, selections_equal, INITIAL_DEFAULT_PALETTE, DEFAULT_ANIMATION_SPEED } from "./state.js";
 
-import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project, palette_changed } from "./actions.js";
-import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing, do_drop_action } from "./actions.js";
+import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project, palette_changed, apply_rules } from "./actions.js";
+import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing, do_drop_action, run_rules_once } from "./actions.js";
 
 /** @typedef {import('./state.js').Selection} Selection */
 /** @typedef {import('./state.js').Rule} Rule */
@@ -22,6 +22,24 @@ init_starter_project(render_callback); // load and render default rules and play
 render_menu_buttons();
 update_action_buttons();
 set_true_vh();
+
+
+// main loop
+// doesn't do much, unless rules have triggered animation.
+/** @param {DOMHighResTimeStamp} timestamp - the current timestamp from requestAnimationFrame */
+function animation_loop(timestamp) {
+    requestAnimationFrame(animation_loop); // always loop
+
+    if (UI_STATE.next_timestamp && timestamp >= UI_STATE.next_timestamp) {
+
+        const run_again = run_rules_once(() => apply_rules(null, null), 'run_again', render_callback);
+        
+        // set next timestamp
+        const anim_speed = OPTIONS.animation_speed ?? DEFAULT_ANIMATION_SPEED;
+        UI_STATE.next_timestamp = (run_again) ? timestamp + anim_speed : null;
+    }
+}
+requestAnimationFrame(animation_loop); // start the loop
 
 
 // permanent window/ main DOM/ document event listeners
@@ -185,6 +203,7 @@ function setup_dialogs() {
     const input_els = {
         tile_size: /** @type {HTMLInputElement} */(document.getElementById("tile-size-input")),
         palette: /** @type {HTMLInputElement} */(document.getElementById("palette-input")),
+        animation_speed: /** @type {HTMLInputElement} */(document.getElementById("animation-speed-input")),
     }
     
     dialog_els.new_project.addEventListener("close", () => {
@@ -205,6 +224,8 @@ function setup_dialogs() {
     });
     
     input_els.palette.value = OPTIONS.default_palette.join(" ");
+    input_els.animation_speed.value = OPTIONS.animation_speed.toString();
+
     dialog_els.edit_project.addEventListener("close", () => {
         if (dialog_els.edit_project.returnValue === "ok") {
             const new_palette = input_els.palette.value.split(" ").map(c => c.trim()).filter(c => c.length > 0);
@@ -227,10 +248,13 @@ function setup_dialogs() {
                 });
             }
 
-            // change for the project and remember as new default
+            // change palette for the project and remember as new default
             PROJECT.palette = new_palette_hex;
             OPTIONS.selected_palette_value = 1; // 1 is the first color
             OPTIONS.default_palette = structuredClone(new_palette_hex);
+
+            OPTIONS.animation_speed = +input_els.animation_speed.value;
+
             save_options();
             palette_changed();
 
@@ -565,7 +589,7 @@ function create_rule_el(rule) {
     // keypress label
     if (rule.keybind) {
         const rule_keybind = document.createElement("label");
-        rule_keybind.className = "rule-keybind-label";
+        rule_keybind.className = "rule-io-label";
         rule_keybind.textContent = "on key: " + (rule.rotate ? '→ (↓, ←, ↑)' : 'X');
         rule_keybind.title = "This rule is triggered by key input";
         rule_content.appendChild(rule_keybind);
@@ -631,6 +655,17 @@ function create_rule_el(rule) {
         rule_parts.appendChild(part_el);
     });
 
+    // indicate if the rule starts animation
+    if (rule.trigger_animation_loop) {
+        const start_animation_label = document.createElement("label");
+        start_animation_label.className = "rule-io-label";
+        start_animation_label.textContent = "→ Animation Loop";
+        start_animation_label.title = "This rule triggers the rules to run again in an animation loop";
+        // rule_el.classList.add("flag-trigger-animation-loop");
+        rule_content.appendChild(start_animation_label);
+    }
+
+    // highlight selected elements in rule
     if (PROJECT.selected.type !== 'play') {
         PROJECT.selected.paths.forEach(sel_path => {
             if (sel_path.rule_id === rule.id) add_rule_highlight(sel_path, rule_el)

@@ -1,4 +1,4 @@
-import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, UNDO_STACK_LIMIT_PLAY, UNDO_STACK_LIMIT_RULES, RULE_APPLICATION_LIMIT } from "./state.js";
+import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, UNDO_STACK_LIMIT_PLAY, UNDO_STACK_LIMIT_RULES, RULE_APPLICATION_LIMIT, DEFAULT_ANIMATION_SPEED } from "./state.js";
 import { clear_undo_stack, generate_id, get_blank_pattern, selections_equal } from "./state.js";
 
 import { draw_in_pattern, rotate_pattern, flip_pattern, apply_rule } from "./edit-pattern.js";
@@ -53,6 +53,7 @@ export const ACTIONS = [
     { id: "rule_flag", hint: "☑️ Group"       , keys: ["Alt", "g"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'part_of_group') },
     { id: "rule_flag", hint: "☑️ Comment"     , keys: ["Alt", "c"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'show_comment') },
     { id: "rule_flag", hint: "☑️ Keybind"     , keys: ["Alt", "k"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'keybind') },
+    { id: "rule_flag", hint: "☑️ Animation"   , keys: ["Alt", "a"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'trigger_animation_loop') },
 
     { id: "input"    , hint: "⬅️ Left"        , keys: ["ArrowLeft"            ], action: () => apply_rules(null, "left") },
     { id: "input"    , hint: "➡️ Right"       , keys: ["ArrowRight"           ], action: () => apply_rules(null, "right") },
@@ -128,26 +129,17 @@ export function do_action(action, id, render_fn) {
     }
 
     if (id === 'run' || id === 'run_all' || id === 'run_after_change' || id === 'input') {
+
+        // manually run rules.
+        // if an animation is ongoing, should this work or not? TODO
+
         // change the play pattern.
         const previous_state = structuredClone(PROJECT.play_pattern);
-        const stats = action(PROJECT.selected);
 
-        if (!stats) {
-            console.warn(`Action '${id}' probably failed, could not get stats.`);
-            return;
-        }
-
-        // log stats
-        const { application_count, failed_count, groups_application_count, groups_failed_count, groups_that_hit_limit } = stats;
-        if (groups_that_hit_limit.length > 0) {
-            console.warn(`Rule groups ${groups_that_hit_limit.join(', ')} reached the application limit of ${RULE_APPLICATION_LIMIT}`);
-        }
-        console.log(`${groups_application_count} of ${groups_application_count + groups_failed_count} groups applied.\n` 
-            + `Checked ${stats.rules_count} rules, applied ${application_count} time(s) and failed ${failed_count} time(s).`);
-        
-        // react to changes
-        if (application_count < 1) return; // nothing changed
-        render_fn("play", null);
+        const run_again = run_rules_once(action, id, render_fn);
+        // set next timestamp - after this, it will be handled by the animation loop.
+        const anim_speed = OPTIONS.animation_speed ?? DEFAULT_ANIMATION_SPEED;
+        UI_STATE.next_timestamp = (run_again) ? performance.now() + anim_speed : null;
 
         // if ran manually, save the state for undo
         if (id === 'run_after_change') return;
@@ -180,9 +172,8 @@ export function do_action(action, id, render_fn) {
 
         // run after change
         if (OPTIONS.run_after_change && play_selected) {
-            console.log("Running after change...");
-            const action_fn = ACTIONS.find(a => a.id === 'run_all')?.action;
-            if (action_fn) do_action(action_fn, 'run_after_change', render_fn);
+            console.log("Running after an edit...");
+            do_action(() => apply_rules(null, null), 'run_after_change', render_fn);
         }
         return;
     } 
@@ -250,6 +241,43 @@ function undo_action(render_fn) {
     console.log("Nothing to undo");
 }
 
+/**
+ * Run the rules. This can trigger again in an animation loop.
+ * @param {function} action 
+ * @param {string} id 
+ * @param {render_callback} render_fn 
+ * @return {true | undefined} - true if an animation was triggered
+ */
+export function run_rules_once(action, id, render_fn) {
+
+    const stats = action(PROJECT.selected); // actually run.
+    if (!stats) {
+        console.warn(`Action '${id}' probably failed, could not get stats.`);
+        return;
+    }
+
+    // log stats
+    const { 
+        application_count, failed_count, 
+        groups_application_count, groups_failed_count, 
+        groups_that_hit_limit 
+    } = stats;
+
+    if (groups_that_hit_limit.length > 0) {
+        console.warn(`Rule groups ${groups_that_hit_limit.join(', ')} reached the application limit of ${RULE_APPLICATION_LIMIT}`);
+    }
+
+    console.log(`${application_count} / ${application_count + failed_count} matched.`);
+    if (id !== 'run_again') console.log(`Ran rules. (Mode: ${id}, ${groups_application_count} / ${groups_application_count + groups_failed_count} groups, ${stats.rules_count} rule(s))`);
+
+    // done
+    if (stats.application_count > 0) {
+        render_fn("play", null);
+        if (stats.triggered_animation) return true;
+        // TODO - think about what to do with the stats when animated.
+    }
+}
+
 /** 
  * Run the rules on the play pattern.
  * @param {Selection | null} sel
@@ -266,6 +294,7 @@ export function apply_rules(sel, input) {
         groups_failed_count: 0,
         /** @type {string[]} */
         groups_that_hit_limit: [],
+        triggered_animation: false,
     };
 
     // if there are certain rules selected, only apply those rules.
@@ -289,6 +318,7 @@ export function apply_rules(sel, input) {
             if (rule_success) {
                 group_application_count++;
                 rule_index = 0; // reset to start of group
+                if (rule.trigger_animation_loop) stats.triggered_animation = true;
             } else {
                 group_failed_count++;
                 rule_index++; // try the next rule in the group
@@ -682,8 +712,7 @@ export function finish_drawing(render_fn) {
         OPTIONS.run_after_change) {
         // run the action after drawing
         console.log("Running after drawing...");
-        const action_fn = ACTIONS.find(a => a.id === 'run_all')?.action;
-        if (action_fn) do_action(action_fn, 'run_after_change', render_fn);
+        do_action(() => apply_rules(null, null), 'run_after_change', render_fn);
     }
 }
 

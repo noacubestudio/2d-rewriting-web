@@ -45,6 +45,10 @@
                     Color palette (leave empty for default):
                     <input type="text" id="palette-input" value="MISSING_COLOR_PALETTE" placeholder="#000000 #ffffff #224466">
                 </label>
+                <label>
+                    Animation speed (ms):
+                    <input type="number" id="animation-speed-input" value="MISSING_ANIMATION_SPEED" min="0" max="10000" step="1" required>
+                </label>
                 <p>To change the tile size, make a new project.</p>
                 <div class="button-row">
                     <button type="button" onclick="this.closest('dialog').close('cancel')">Cancel</button>
