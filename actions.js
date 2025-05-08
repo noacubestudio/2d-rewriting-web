@@ -32,6 +32,7 @@ import { move_selection_to_part } from "./edit-selection.js";
 export const ACTIONS = [
     { id: "run"      , hint: "✅ Run Selected", keys: ["Enter"                ], action: /** @param {Selection} s */ (s) => apply_rules(s, null) },
     { id: "run_all"  , hint: "✅ Run All"     , keys: [" "                    ], action: () => apply_rules(null, null) },
+    { id: "stop"     , hint: "⏸️ Stop"        , keys: ["Escape"               ], action: () => stop_rules() },
 
     // actions that are not undoable themselves. render callbacks for most other functions are in do_action()
     { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
@@ -83,7 +84,7 @@ export const ACTION_BUTTON_VISIBILITY = {
     play_selected:      ['savepng', 'input'],
     something_selected: ['resize', 'rotate', 'flip', 'shift', 'clear'],
 };
-const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settings', 'undo'];
+const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settings', 'undo', 'stop'];
 
 
 /** @typedef {Object} Tool_Setting
@@ -267,8 +268,8 @@ export function run_rules_once(action, id, render_fn) {
         console.warn(`Rule groups ${groups_that_hit_limit.join(', ')} reached the application limit of ${RULE_APPLICATION_LIMIT}`);
     }
 
-    console.log(`${application_count} / ${application_count + failed_count} matched.`);
     if (id !== 'run_again') console.log(`Ran rules. (Mode: ${id}, ${groups_application_count} / ${groups_application_count + groups_failed_count} groups, ${stats.rules_count} rule(s))`);
+    console.log(`${application_count} / ${application_count + failed_count} matched.`);
 
     // done
     if (stats.application_count > 0) {
@@ -276,6 +277,12 @@ export function run_rules_once(action, id, render_fn) {
         if (stats.triggered_animation) return true;
         // TODO - think about what to do with the stats when animated.
     }
+}
+
+function stop_rules() {
+    // stop the animation loop and reset the next timestamp
+    UI_STATE.next_timestamp = null;
+    console.log("Stopping rules.");
 }
 
 /** 
