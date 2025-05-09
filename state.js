@@ -4,11 +4,14 @@ export const UNDO_STACK_LIMIT_PLAY = 256;
 export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#036965"];
 export const DEFAULT_ANIMATION_SPEED = 100; // milliseconds
 
+/** @typedef {"brush" | "rect" | "line" | "fill" | "drag" | "eyedropper"} Tool */
+
 /**
  * @typedef {Object} Options
  * @property {string[]} default_palette - hexadecimal colors, 6 digits
  * @property {number} selected_palette_value - used to index the project palette
- * @property {"brush" | "rect" | "line" | "fill" | "drag"} selected_tool
+ * @property {Tool} selected_tool
+ * @property {Tool | null} temp_selected_tool - used to temporarily change the tool
  * @property {boolean} run_after_change - whether to run rules after changing the play pattern
  * @property {number} pixel_scale - scale of the pixels in the editor
  * @property {number} default_tile_size - default size of the tile in pixels
@@ -20,6 +23,7 @@ export const OPTIONS = {
     default_palette: structuredClone(INITIAL_DEFAULT_PALETTE),
     selected_palette_value: 1,
     selected_tool: 'brush',
+    temp_selected_tool: null,
     run_after_change: false,
     pixel_scale: 14,
     default_tile_size: 5,

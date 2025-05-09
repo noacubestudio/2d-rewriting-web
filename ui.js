@@ -2,7 +2,7 @@ import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
 import { clear_project_obj, clear_undo_stack, selections_equal, INITIAL_DEFAULT_PALETTE, DEFAULT_ANIMATION_SPEED } from "./state.js";
 
 import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS, init_starter_project, save_options, load_project, palette_changed, apply_rules } from "./actions.js";
-import { do_action, do_tool_setting, start_drawing, continue_drawing, finish_drawing, do_drop_action, run_rules_once } from "./actions.js";
+import { do_action, do_tool_setting, eyedrop, start_drawing, continue_drawing, finish_drawing, do_drop_action, run_rules_once } from "./actions.js";
 
 /** @typedef {import('./state.js').Selection} Selection */
 /** @typedef {import('./state.js').Rule} Rule */
@@ -45,41 +45,92 @@ requestAnimationFrame(animation_loop); // start the loop
 // permanent window/ main DOM/ document event listeners
 
 // keyboard shortcuts
+const KEYS_DOWN = new Set();
+const KEY_TIMESTAMPS = new Map(); // key -> timestamp
+const TRIGGERED_SHORTCUTS = new Set();
+const TEMP_TOOL_SETTINGS = new Set(); // if any active
+
 document.addEventListener("keydown", (e) => {
-    if (UI_STATE.is_drawing) return; // ignore key events while drawing
     const target = /** @type {HTMLElement} */ (e.target);
-    if (["INPUT", "TEXTAREA"].includes(target.tagName)) return; // ignore key events in inputs
+    if (UI_STATE.is_drawing) return; // ignore when drawing
+    if (["INPUT", "TEXTAREA"].includes(target.tagName)) return; // ignore in inputs
 
-    const pressed = new Set([
-        e.key,
-        ...(e.ctrlKey ? ["Control"] : []),
-        ...(e.shiftKey ? ["Shift"] : []),
-        ...(e.altKey ? ["Alt"] : []),
-    ]);
+    if (!KEYS_DOWN.has(e.key)) {
+        KEYS_DOWN.add(e.key);
+        KEY_TIMESTAMPS.set(e.key, performance.now());
+    }
 
+    // full key set
+    const current_keys = new Set(KEYS_DOWN);
+    if (e.ctrlKey) current_keys.add("Control");
+    if (e.shiftKey) current_keys.add("Shift");
+    if (e.altKey) current_keys.add("Alt");
+
+    // Try ACTION shortcuts
     for (const binding of ACTIONS) {
         if (!binding.keys) continue;
-        if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
+
+        const match = binding.keys.every(k => current_keys.has(k)) && 
+            binding.keys.length === current_keys.size;
+        
+        if (match && !TRIGGERED_SHORTCUTS.has(binding.id)) {
+            TRIGGERED_SHORTCUTS.add(binding.id);
             e.preventDefault();
             do_action(binding.action, binding.id, render_callback);
             break;
-        }
+        }   
     }
 
-    for (const bindings_group of TOOL_SETTINGS) {
-        for (let i = 0; i < bindings_group.options.length; i++) {
-            const binding = bindings_group.options[i];
+    // Tool setting shortcurts (temporary on key down if possible)
+    for (const [ group_key, group ] of Object.entries(TOOL_SETTINGS)) {
+        for (const [_i, binding] of group.options.entries()) {
             if (!binding.keys) continue;
-            if (binding.keys.every(k => pressed.has(k)) && binding.keys.length === pressed.size) {
-                e.preventDefault();
-                const result = do_tool_setting(bindings_group.option_key, binding.value);
-                if (result?.render_selected) update_selected_els(PROJECT.selected, null);
 
-                update_tool_buttons(bindings_group.option_key, i);
-                return;
+            const match = binding.keys.every((/** @type {any} */ k) => current_keys.has(k)) && 
+                binding.keys.length === current_keys.size;
+            
+            if (match && !TRIGGERED_SHORTCUTS.has(binding.value)) {
+                TRIGGERED_SHORTCUTS.add(binding.value);
+                e.preventDefault();
+
+                // set (temp or not)
+                const result = do_tool_setting(binding.value, group_key, group.temp_option_key);
+                if (group.temp_option_key) TEMP_TOOL_SETTINGS.add({ value: binding.value, group });
+
+                // render
+                if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+                if (!group.temp_option_key) select_tool_button(/** @type {keyof Options} */ (group_key), binding.value);
+                break;
             }
         }
     }
+});
+
+document.addEventListener("keyup", (e) => {
+    const duration = performance.now() - (KEY_TIMESTAMPS.get(e.key) ?? performance.now());
+    const temp_only = (KEY_TIMESTAMPS.size === 1 && duration > 200);
+
+    if (TEMP_TOOL_SETTINGS.size) {
+        for (const { value, group } of TEMP_TOOL_SETTINGS) {
+            // reset temp
+            const result = do_tool_setting(undefined, undefined, group.temp_option_key);
+            if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+
+            if (!temp_only) {
+                // normal setting
+                const result = do_tool_setting(value, group.option_key, null);
+                if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+
+                // only show now for settings that can be temporary but were finally set
+                select_tool_button(group.option_key, group.value);
+            }
+        }
+    }
+
+    KEYS_DOWN.delete(e.key);
+    KEY_TIMESTAMPS.delete(e.key);
+    TRIGGERED_SHORTCUTS.clear(); // reset on first key up
+    TEMP_TOOL_SETTINGS.clear(); // reset on first key up
 });
 
 if (RULES_CONTAINER_EL) RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
@@ -266,7 +317,7 @@ function setup_dialogs() {
 
             // change in the UI
             update_tool_button_set('selected_palette_value');
-            update_tool_buttons('selected_palette_value', 0); // set first color as active
+            select_tool_button('selected_palette_value', OPTIONS.selected_palette_value); // set first color as active
             update_play_pattern_el();
             update_all_rule_els();
         }
@@ -320,8 +371,7 @@ function render_callback(change_type, data) {
 
     } else if (change_type === "palette") {
         update_tool_button_set('selected_palette_value');
-        // assume the default color has been set
-        update_tool_buttons('selected_palette_value', 0);
+        select_tool_button('selected_palette_value', OPTIONS.selected_palette_value);
 
     } else {
         console.warn("Unknown change type:", change_type, data);
@@ -346,21 +396,20 @@ function render_menu_buttons() {
         ACTIONS_CONTAINER_EL.appendChild(btn);
     });
 
-    TOOL_SETTINGS.forEach(({hint: group_label_text, option_key, options}) => {
-        // make container for options and add label in front
+    // make container for options and add label in front
+    for (const [group_key, group] of Object.entries(TOOL_SETTINGS)) {
         const group_container = document.createElement("div");
         group_container.className = "options-container";
-        group_container.dataset.group = option_key;
-        if (group_label_text) {
+        group_container.dataset.group = group_key;
+        if (group.label) {
             const group_label_el = document.createElement("label");
-            group_label_el.textContent = group_label_text;
+            group_label_el.textContent = group.label;
             group_label_el.className = "group-label";
             group_container.appendChild(group_label_el);
         }
-        populate_with_options(group_container, option_key, options); // add options to container
-
+        populate_with_options(group_container, /** @type {keyof Options} */ (group_key), group.options);
         TOOL_SETTINGS_CONTAINER_EL.appendChild(group_container);
-    });
+    }
 }
 
 /** 
@@ -370,11 +419,11 @@ function render_menu_buttons() {
  */
 function populate_with_options(group_container, option_key, options) {
     // add options to container
-    options.forEach(({label, keys, value}, i) => {
+    options.forEach(({label, keys, value}) => {
         const btn = document.createElement("button");
         btn.className = "tool-button";
         btn.dataset.group = option_key;
-        btn.dataset.option_index = i.toString();
+        btn.dataset.option_value = value.toString();
         if (value === OPTIONS[option_key]) btn.classList.add("active"); // initially active button
         if (option_key === "selected_palette_value") {
             btn.classList.add("color-button");
@@ -387,7 +436,7 @@ function populate_with_options(group_container, option_key, options) {
         btn.textContent = label;
         btn.title = (keys) ? "Hotkey: " + prettify_hotkey_names(keys) : "No hotkey"; // tooltip
         btn.addEventListener("click", () => { 
-            const result = do_tool_setting(option_key, value); 
+            const result = do_tool_setting(value, option_key); 
             if (result?.render_selected) update_selected_els(PROJECT.selected, null);
 
             const matching_buttons = group_container.querySelectorAll(`button[data-group="${option_key}"]`);
@@ -413,28 +462,28 @@ function prettify_hotkey_names(keys) {
     }).join(" + ");
 }
 
-/** @param {keyof Options} option_key */
-function update_tool_button_set(option_key) {
+/** @param {keyof Options} group_id */
+function update_tool_button_set(group_id) {
     if (!TOOL_SETTINGS_CONTAINER_EL) throw new Error("No tool settings container found");
-    const container_el = /** @type {HTMLDivElement} */ (TOOL_SETTINGS_CONTAINER_EL.querySelector(`.options-container[data-group="${option_key}"]`));
-    if (!container_el) throw new Error(`Container for ${option_key} not found`);
+    const container_el = /** @type {HTMLDivElement} */ (TOOL_SETTINGS_CONTAINER_EL.querySelector(`.options-container[data-group="${group_id}"]`));
+    if (!container_el) throw new Error(`Container for ${group_id} not found`);
 
     container_el.innerHTML = ""; // clear old buttons
-    const group_object = TOOL_SETTINGS.find(g => g.option_key === option_key);
-    if (!group_object) throw new Error(`Toolbar group object ${option_key} not found`);
-    populate_with_options(container_el, option_key, group_object.options);
+    const group_object = TOOL_SETTINGS[group_id];
+    if (!group_object) throw new Error(`Toolbar group object ${group_id} not found`);
+    populate_with_options(container_el, group_id, group_object.options);
 }
 
 /**
- * @param {string} group - the group of buttons to update
- * @param {number} index - the index of the button to set active
+ * @param {keyof Options} group_id - the group of buttons to update
+ * @param {any} value - the value that needs to be highlighted
  */
-function update_tool_buttons(group, index) {
+function select_tool_button(group_id, value) {
     if (!TOOL_SETTINGS_CONTAINER_EL) throw new Error("No tool settings container found");
     /** @type {NodeListOf<HTMLElement>} */
-    const btns_in_group = TOOL_SETTINGS_CONTAINER_EL.querySelectorAll(`button[data-group="${group}"]`);
+    const btns_in_group = TOOL_SETTINGS_CONTAINER_EL.querySelectorAll(`button[data-group="${group_id}"]`);
     btns_in_group.forEach(b => {
-        if (b.dataset.option_index === index.toString()) {
+        if (b.dataset.option_value === value.toString()) {
             b.classList.add("active")
         } else {
             b.classList.remove("active")
@@ -716,16 +765,24 @@ function create_pattern_editor_el(pattern, canvas) {
     }
 
     grid.addEventListener("pointerdown", (e) => {
-        if (OPTIONS.selected_tool === 'drag') return; // not a drawing tool.
+        const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+        if (current_tool === 'drag') return; // not a drawing tool.
         e.preventDefault();
-
-        UI_STATE.is_drawing = true;
 
         const cell = /** @type {HTMLElement | null} */ (e.target);
         if (cell && cell.classList.contains("pixel")) {
             if (!cell.dataset.x || !cell.dataset.y) return;
             const x = +cell.dataset.x;
             const y = +cell.dataset.y;
+
+            UI_STATE.is_drawing = true;
+
+            if (current_tool === 'eyedropper') {
+                eyedrop(pattern, x, y);
+                select_tool_button('selected_palette_value', OPTIONS.selected_palette_value);
+                return;
+            }
+
             // setup, draw, render. could be multiple patterns at once.
             const changed_patterns = start_drawing(pattern, x, y);
             if (pattern.id === PROJECT.play_pattern.id) { draw_pattern_to_canvas(pattern, canvas); return; }
@@ -734,6 +791,7 @@ function create_pattern_editor_el(pattern, canvas) {
     });
 
     grid.addEventListener("pointermove", (e) => {
+        const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
         if (!UI_STATE.is_drawing) return;
 
         const cell = /** @type {HTMLElement | null} */ (document.elementFromPoint(e.clientX, e.clientY));
@@ -741,6 +799,14 @@ function create_pattern_editor_el(pattern, canvas) {
             if (!cell.dataset.x || !cell.dataset.y) return;
             const x = +cell.dataset.x;
             const y = +cell.dataset.y;
+
+            if (current_tool === 'eyedropper') {
+                const changed = eyedrop(pattern, x, y);
+                if (!changed) return;
+                select_tool_button('selected_palette_value', OPTIONS.selected_palette_value);
+                return;
+            }
+
             if (x === UI_STATE.draw_x && y === UI_STATE.draw_y) return; // no change
             // draw and render
             const changed_patterns = continue_drawing(x, y);

@@ -11,6 +11,7 @@ import { move_selection_to_part } from "./edit-selection.js";
 /** @typedef {import('./state.js').Pattern} Pattern */
 /** @typedef {import('./state.js').Selection} Selection */
 /** @typedef {import('./state.js').Options} Options */
+/** @typedef {import('./state.js').Tool} Tool */
 /** @typedef {import('./state.js').Project} Project */
 
 /** @typedef {import('./edit-selection.js').Selection_Edit_Output} Selection_Edit_Output */
@@ -87,35 +88,36 @@ export const ACTION_BUTTON_VISIBILITY = {
 const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settings', 'undo', 'stop'];
 
 
-/** @typedef {Object} Tool_Setting
- * @property {string | null} hint - label next to the buttons
- * @property {keyof Options} option_key - the key in the OPTIONS object to change
- * @property {{ value: any, label: string, keys: (string[] | null)}[]} options - array of options for the setting
+/** 
+ * @typedef {Object} Tool_Setting
+ * @property {string | null} label
+ * @property {keyof Options} [temp_option_key] - change while held, reset to null on release
+ * @property {{ value: string | boolean | number, label: string, keys: (string[] | null)}[]} options - array of options for the setting
 */
 
-/** @type {Tool_Setting[]} */
-export const TOOL_SETTINGS = [
-    { hint: null, option_key: 'selected_palette_value', options: [
-        { value: 1, label: "1"  , keys: ["1"] },
-        { value: 2, label: "2"  , keys: ["2"] },
-        { value: 3, label: "3"  , keys: ["3"] },
-        { value: 0, label: "4"  , keys: ["4"] },
-        { value:-1, label: "Any", keys: ["5"] },
+/**
+ * @typedef {Object.<keyof Options, Tool_Setting>} Tool_Settings
+ * @property {Tool_Setting} selected_palette_value - the palette to use for the tool
+ * @property {Tool_Setting} selected_tool - the tool to use
+ * @property {Tool_Setting} run_after_change - whether to run the rules after a change
+*/
 
+/** @type {Tool_Settings} */
+export const TOOL_SETTINGS = {
+    selected_palette_value: { label: "Palette", options: [ /* generated */ ]},
+    selected_tool:          { label: "Tool"   , temp_option_key: "temp_selected_tool", options: [
+        { value: 'brush'     , label: "✏️", keys: ["b"] },
+        { value: 'line'      , label: "➖", keys: ["l"] },
+        { value: 'rect'      , label: "🔳", keys: ["t"] },
+        { value: 'fill'      , label: "🪣", keys: ["f"] },
+        { value: 'eyedropper', label: "🔍", keys: ["i"] },
+        { value: 'drag'      , label: "🫳", keys: ["m"] },
     ]},
-    { hint: "Tool", option_key: 'selected_tool', options: [
-        { value: 'brush', label: "✏️", keys: ["b"] },
-        { value: 'line' , label: "➖", keys: ["l"] },
-        { value: 'rect' , label: "🔳", keys: ["t"] },
-        { value: 'fill' , label: "🪣", keys: ["f"] },
-        { value: 'drag' , label: "🫳", keys: ["m"] },
-    ]},
-    { hint: "Run after change", option_key: 'run_after_change', options: [
+    run_after_change:       { label: "Run after change", options: [ 
         { value: false, label: "Off", keys: null },
         { value: true , label: "On" , keys: null },
     ]},
-];
-
+};
 
 /**
  * * Perform an action on the selected pattern or play pattern.
@@ -481,14 +483,22 @@ function expand_rule_group(group, rule, filter_input) {
 /**
  * Change the value of a setting in the options object.
  * @template {keyof Options} K
- * @param {K} option_key
  * @param {Options[K]} value
+ * @param {K} option_key
+ * @param {K} [temp_option_key]
  * @returns { { render_selected: boolean } | undefined }
  */
-export function do_tool_setting(option_key, value) {
+export function do_tool_setting(value, option_key, temp_option_key) {
     const previous_value = OPTIONS[option_key];
-    OPTIONS[option_key] = value;
-    save_options();
+
+    if (temp_option_key) {
+        console.log("Temporary option set:", temp_option_key, value);
+        OPTIONS[temp_option_key] = value;
+    } else if (option_key) {
+        console.log("Option set:", option_key, value);
+        OPTIONS[option_key] = value;
+        save_options();
+    }
 
     if (option_key === 'selected_tool' && (value === 'drag' || previous_value === 'drag')) {
         // drag tool does not show the grid, so update the selected rules.
@@ -630,16 +640,15 @@ export function palette_changed() {
     });
 
     // change the tool settings to the new palette
-    const palette_setting = TOOL_SETTINGS.find(s => s.option_key === 'selected_palette_value');
-    if (!palette_setting) throw new Error("Palette setting not found");
+    const palette_setting = TOOL_SETTINGS.selected_palette_value;
 
     // first, make an option for every color in the palette with ordered keys
     palette_setting.options = PROJECT.palette.map((_hex, i) => {
         const num = i + 1; // start from 1, not 0
-        return { value: num, label: num.toString(), keys: [num.toString()] };
+        return { value: i, label: i.toString(), keys: [i.toString()] };
     });
     // the last color needs to be 0, so the values go 1, 2, 3... 0.
-    palette_setting.options[palette_setting.options.length - 1].value = 0;
+    // palette_setting.options[palette_setting.options.length - 1].value = 0;
 
     // add wildcard
     palette_setting.options.push({ value: -1, label: "Any", keys: [palette_setting.options.length.toString()] });
@@ -680,6 +689,33 @@ export function load_project(file, render_fn) {
 // drawing
 
 /** 
+ * @param {Pattern} pattern
+ * @param {number} x
+ * @param {number} y
+ */
+export function eyedrop(pattern, x, y) {
+    const value_at_pixel = pattern.pixels[y][x];
+    if (value_at_pixel === OPTIONS.selected_palette_value) return; // no change
+    do_tool_setting(value_at_pixel, 'selected_palette_value');
+    return true;
+}
+
+/** 
+ * @param {number} value_at_pixel - the value at the pixel where the user started drawing 
+ * @param {Tool} tool - the tool that is currently selected
+ */
+function pick_draw_value(value_at_pixel, tool) {
+    if (tool !== 'brush') {
+        // simply use the new value
+        UI_STATE.draw_value = OPTIONS.selected_palette_value;
+        return;
+    }
+    // when starting on the color itself, erase instead of draw
+    UI_STATE.draw_value = (value_at_pixel === OPTIONS.selected_palette_value) ? 
+      0 : OPTIONS.selected_palette_value;
+}
+
+/** 
  * @param {Pattern} pattern - the primary pattern to draw in
  * @param {number} x - the x coordinate to draw at
  * @param {number} y - the y coordinate to draw at
@@ -706,8 +742,9 @@ export function start_drawing(pattern, x, y) {
     UI_STATE.draw_pixels_cloned = UI_STATE.draw_patterns.map((p) => structuredClone(p.pixels));
 
     // draw
-    pick_draw_value(pattern.pixels[y][x]); // based on previous value
-    UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, OPTIONS.selected_tool, UI_STATE));
+    const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+    pick_draw_value(pattern.pixels[y][x], current_tool); // based on previous value
+    UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, current_tool, UI_STATE));
     return UI_STATE.draw_patterns; // render these
 }
 
@@ -716,7 +753,8 @@ export function start_drawing(pattern, x, y) {
  * @param {number} y - the next y coordinate to draw at
  */
 export function continue_drawing(x, y) {
-    if (OPTIONS.selected_tool !== 'brush') {
+    const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+    if (current_tool !== 'brush') {
         // reset the pixels to the state at the start of drawing
         for (let i = 0; i < UI_STATE.draw_patterns.length; i++) {
             UI_STATE.draw_patterns[i].pixels = structuredClone(UI_STATE.draw_pixels_cloned[i]);
@@ -725,7 +763,7 @@ export function continue_drawing(x, y) {
     UI_STATE.draw_x = x;
     UI_STATE.draw_y = y;
 
-    UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, OPTIONS.selected_tool, UI_STATE));
+    UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, current_tool, UI_STATE));
     return UI_STATE.draw_patterns; // render these
 }
 
@@ -745,18 +783,6 @@ export function finish_drawing(render_fn) {
         console.log("Running after drawing...");
         do_action(() => apply_rules(null, null), 'run_after_change', render_fn);
     }
-}
-
-/** @param {number} value_at_pixel - the value at the pixel where the user started drawing */
-function pick_draw_value(value_at_pixel) {
-    if (OPTIONS.selected_tool !== 'brush') {
-        // simply use the new value
-        UI_STATE.draw_value = OPTIONS.selected_palette_value;
-        return;
-    }
-    // when starting on the color itself, erase instead of draw
-    UI_STATE.draw_value = (value_at_pixel === OPTIONS.selected_palette_value) ? 
-      0 : OPTIONS.selected_palette_value;
 }
 
 /**
