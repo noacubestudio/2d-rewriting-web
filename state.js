@@ -31,7 +31,7 @@ export const OPTIONS = {
 }
 
 // load options from localstorage if possible
-function load_options() {
+export function load_options() {
     const saved_options = localStorage.getItem('options');
     if (saved_options) {
         try {
@@ -50,7 +50,6 @@ function load_options() {
         }
     }
 }
-load_options();
 
 
 
@@ -131,7 +130,6 @@ export function clear_project_obj(tile_size = OPTIONS.default_tile_size, palette
         type: null
     };
 }
-clear_project_obj();
 
 /**
  * @typedef {Object} Undo_Stack
@@ -149,7 +147,6 @@ export function clear_undo_stack() {
     UNDO_STACK.selected = [];
     UNDO_STACK.play_pattern = [];
 }
-clear_undo_stack();
 
 /** 
  * @typedef {Object} UI_State
@@ -180,51 +177,3 @@ export const UI_STATE = {
     next_timestamp: null,
     text_contrast_palette: [],
 };
-
-
-
-// utility functions
-
-/**
- * @param {Selection} a - first selection to compare
- * @param {Selection} b - second selection to compare
- * @returns {boolean} - true if the selections are equal, false otherwise
- */
-export function selections_equal(a, b) {
-    if (a.type !== b.type) return false;
-    if (!a.paths.length && !b.paths.length) return true; // both empty
-    if (a.paths.length !== b.paths.length) return false; // different length
-
-    for (let i = 0; i < a.paths.length; i++) {
-        const a_path = a.paths[i];
-        const b_path = b.paths[i];
-        if (a_path.rule_id !== b_path.rule_id) return false;
-        if (a_path.part_id !== b_path.part_id) return false;
-        if (a_path.pattern_id !== b_path.pattern_id) return false;
-    }
-    return true;
-}
-
-/**
- * Generate a unique id for the editor objects (rules, patterns, etc.)
- * @param {string} prefix - optional prefix for the id
- */
-export function generate_id(prefix = "id") {
-    // use the date and a counter (stored in PROJECT.rules) to generate a unique id
-    return `${prefix}_${Date.now().toString(36)}_${(PROJECT.editor_obj_id_counter++).toString(36)}`;
-}
-
-/**
- * Make a new pattern with a given width and height, filled with 0s
- * @param {number} w - width of the pattern
- * @param {number} h - height of the pattern
- * @returns {Pattern} - the new pattern object
- */
-export function get_blank_pattern(w = PROJECT.tile_size, h = PROJECT.tile_size) {
-    return {
-        id: generate_id('pat'),
-        width: w, 
-        height: h,
-        pixels: Array.from({ length: h }, () => Array(w).fill(0))
-    };
-}

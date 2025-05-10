@@ -1,11 +1,16 @@
-import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, UNDO_STACK_LIMIT_PLAY, UNDO_STACK_LIMIT_RULES, RULE_APPLICATION_LIMIT, DEFAULT_ANIMATION_SPEED } from "./state.js";
-import { clear_undo_stack, generate_id, get_blank_pattern, selections_equal } from "./state.js";
+import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
+import { UNDO_STACK_LIMIT_PLAY, UNDO_STACK_LIMIT_RULES, RULE_APPLICATION_LIMIT, DEFAULT_ANIMATION_SPEED } from "./state.js";
+import { clear_undo_stack, clear_project_obj } from "./state.js";
+
+import { generate_id, get_blank_pattern, selections_equal } from "./utils.js";
 
 import { draw_in_pattern, rotate_pattern, flip_pattern, apply_rule } from "./edit-pattern.js";
+import { get_selected_rule_patterns, get_selected_rule_objects, move_sel_to_dest } from "./edit-selection.js";
+import { toggle_rule_flag, duplicate_sel, delete_sel, clear_sel, reorder_sel } from "./edit-selection.js";
+import { resize_patterns_in_sel, rotate_patterns_in_sel, flip_patterns_in_sel, shift_patterns_in_sel } from "./edit-selection.js";
 
-import { get_selected_rule_patterns, get_selected_rule_objects } from "./edit-selection.js";
-import { toggle_rule_flag, duplicate_selection, delete_selection, clear_selection, reorder_selection, resize_patterns_in_selection, rotate_patterns_in_selection, flip_patterns_in_selection, shift_patterns_in_selection } from "./edit-selection.js";
-import { move_selection_to_part } from "./edit-selection.js";
+import { update_tool_button_set } from "./render_menus.js";
+import { update_all_rule_els, update_all_rule_indices, update_play_pattern_el, update_rule_el_by_id, update_selected_els } from "./render_project.js";
 
 /** @typedef {import('./state.js').Rule} Rule */
 /** @typedef {import('./state.js').Pattern} Pattern */
@@ -15,7 +20,6 @@ import { move_selection_to_part } from "./edit-selection.js";
 /** @typedef {import('./state.js').Project} Project */
 
 /** @typedef {import('./edit-selection.js').Selection_Edit_Output} Selection_Edit_Output */
-/** @typedef {import('./ui.js').render_callback} render_callback */
 
 
 /** 
@@ -36,19 +40,19 @@ export const ACTIONS = [
     { id: "stop"     , hint: "⏸️ Stop"        , keys: ["Escape"               ], action: () => stop_rules() },
 
     // actions that are not undoable themselves. render callbacks for most other functions are in do_action()
-    { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
-    { id: "undo"     , hint: null             , keys: ["u"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => undo_action(render_fn) },
-    { id: "load"     , hint: "📂 Load"        , keys: ["Shift", "o"           ], action: /** @param {render_callback} render_fn */ (render_fn) => use_file_input_and_load(render_fn) },
+    { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: () => undo_action() },
+    { id: "undo"     , hint: null             , keys: ["u"                    ], action: () => undo_action() },
+    { id: "load"     , hint: "📂 Load"        , keys: ["Shift", "o"           ], action: () => use_file_input_and_load() },
     { id: "save"     , hint: "💾 Save"        , keys: ["Shift", "s"           ], action: () => save_project() },
     { id: "savepng"  , hint: "📷 Save PNG"    , keys: null                     , action: () => save_play_png() },
     { id: "new"      , hint: "❇️ New"         , keys: ["Shift", "n"           ], action: () => new_project() },
     { id: "settings" , hint: "⚙️ Settings"    , keys: null                     , action: () => edit_project() },
-    { id: "scale"    , hint: "➖ Px Scale"    , keys: ["-"                    ], action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(-1, render_fn) },
-    { id: "scale"    , hint: "➕ Px Scale"    , keys: ["="                    ], action: /** @param {render_callback} render_fn */ (render_fn) => zoom_pixel_grids(1, render_fn) },
+    { id: "scale"    , hint: "➖ Px Scale"    , keys: ["-"                    ], action: () => zoom_pixel_grids(-1) },
+    { id: "scale"    , hint: "➕ Px Scale"    , keys: ["="                    ], action: () => zoom_pixel_grids(1) },
 
-    { id: "delete"   , hint: "❌ Delete"      , keys: ["Delete"               ], action: /** @param {Selection} s */ (s) => delete_selection(s) },
-    { id: "clear"    , hint: "🧼 Clear"       , keys: ["w"                    ], action: /** @param {Selection} s */ (s) => clear_selection(s) },
-    { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: /** @param {Selection} s */ (s) => duplicate_selection(s) },
+    { id: "delete"   , hint: "❌ Delete"      , keys: ["Delete"               ], action: /** @param {Selection} s */ (s) => delete_sel(s) },
+    { id: "clear"    , hint: "🧼 Clear"       , keys: ["w"                    ], action: /** @param {Selection} s */ (s) => clear_sel(s) },
+    { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: /** @param {Selection} s */ (s) => duplicate_sel(s) },
 
     { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["Alt", "r"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'rotate') },
     { id: "rule_flag", hint: "☑️ Mirrors"     , keys: ["Alt", "m"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'mirror') },
@@ -63,21 +67,21 @@ export const ACTIONS = [
     { id: "input"    , hint: "⬇️ Down"        , keys: ["ArrowDown"            ], action: () => apply_rules(null, "down") },
     { id: "input"    , hint: "❎ Action"      , keys: ["x"                    ], action: () => apply_rules(null, "x") },
 
-    { id: "swap"     , hint: null             , keys: ["ArrowUp"    , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,-1) },
-    { id: "swap"     , hint: null             , keys: ["ArrowDown"  , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,1) },
-    { id: "swap"     , hint: "⬅️ Swap Back"   , keys: ["ArrowLeft"  , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,-1) },
-    { id: "swap"     , hint: "➡️ Swap Next"   , keys: ["ArrowRight" , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_selection(s,1) },
-    { id: "resize"   , hint: "➖ Width"       , keys: ["ArrowLeft" , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_selection(s,-1,0) },
-    { id: "resize"   , hint: "➕ Width"       , keys: ["ArrowRight", "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_selection(s,1,0) },
-    { id: "resize"   , hint: "➖ Height"      , keys: ["ArrowUp"   , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_selection(s,0,-1) },
-    { id: "resize"   , hint: "➕ Height"      , keys: ["ArrowDown" , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_selection(s,0,1) },
-    { id: "rotate"   , hint: "🔃 Rotate"      , keys: ["r"                    ], action: /** @param {Selection} s */ (s) => rotate_patterns_in_selection(s) },
-    { id: "flip"     , hint: "↔️ Flip Hor."   , keys: ["h"                    ], action: /** @param {Selection} s */ (s) => flip_patterns_in_selection(s, true, false) },
-    { id: "flip"     , hint: "↕️ Flip Ver."   , keys: ["v"                    ], action: /** @param {Selection} s */ (s) => flip_patterns_in_selection(s, false, true) },
-    { id: "shift"    , hint: "⬅️ Shift Left"  , keys: ["ArrowLeft" , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_selection(s,-1,0) },
-    { id: "shift"    , hint: "➡️ Shift Right" , keys: ["ArrowRight", "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_selection(s,1,0) },
-    { id: "shift"    , hint: "⬆️ Shift Up"    , keys: ["ArrowUp"   , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_selection(s,0,-1) },
-    { id: "shift"    , hint: "⬇️ Shift Down"  , keys: ["ArrowDown" , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_selection(s,0,1) },
+    { id: "swap"     , hint: null             , keys: ["ArrowUp"    , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_sel(s,-1) },
+    { id: "swap"     , hint: null             , keys: ["ArrowDown"  , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_sel(s,1) },
+    { id: "swap"     , hint: "⬅️ Swap Back"   , keys: ["ArrowLeft"  , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_sel(s,-1) },
+    { id: "swap"     , hint: "➡️ Swap Next"   , keys: ["ArrowRight" , "Shift" ], action: /** @param {Selection} s */ (s) => reorder_sel(s,1) },
+    { id: "resize"   , hint: "➖ Width"       , keys: ["ArrowLeft" , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_sel(s,-1,0) },
+    { id: "resize"   , hint: "➕ Width"       , keys: ["ArrowRight", "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_sel(s,1,0) },
+    { id: "resize"   , hint: "➖ Height"      , keys: ["ArrowUp"   , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_sel(s,0,-1) },
+    { id: "resize"   , hint: "➕ Height"      , keys: ["ArrowDown" , "Control"], action: /** @param {Selection} s */ (s) => resize_patterns_in_sel(s,0,1) },
+    { id: "rotate"   , hint: "🔃 Rotate"      , keys: ["r"                    ], action: /** @param {Selection} s */ (s) => rotate_patterns_in_sel(s) },
+    { id: "flip"     , hint: "↔️ Flip Hor."   , keys: ["h"                    ], action: /** @param {Selection} s */ (s) => flip_patterns_in_sel(s, true, false) },
+    { id: "flip"     , hint: "↕️ Flip Ver."   , keys: ["v"                    ], action: /** @param {Selection} s */ (s) => flip_patterns_in_sel(s, false, true) },
+    { id: "shift"    , hint: "⬅️ Shift Left"  , keys: ["ArrowLeft" , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_sel(s,-1,0) },
+    { id: "shift"    , hint: "➡️ Shift Right" , keys: ["ArrowRight", "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_sel(s,1,0) },
+    { id: "shift"    , hint: "⬆️ Shift Up"    , keys: ["ArrowUp"   , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_sel(s,0,-1) },
+    { id: "shift"    , hint: "⬇️ Shift Down"  , keys: ["ArrowDown" , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_sel(s,0,1) },
 ];
 export const ACTION_BUTTON_VISIBILITY = {
     nothing_selected:   ['save', 'load', 'new', 'scale', 'settings'],
@@ -89,6 +93,7 @@ const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settin
 
 
 /** 
+ * Tool settings are not part of the undo stack and are not saved to the project.
  * @typedef {Object} Tool_Setting
  * @property {string | null} label
  * @property {keyof Options} [temp_option_key] - change while held, reset to null on release
@@ -123,11 +128,10 @@ export const TOOL_SETTINGS = {
  * * Perform an action on the selected pattern or play pattern.
  * @param {function} action 
  * @param {string} id 
- * @param {render_callback} render_fn 
  */
-export function do_action(action, id, render_fn) {
+export function do_action(action, id) {
     if (NOT_UNDOABLE_ACTIONS.includes(id)) {
-        action(render_fn);
+        action();
         return;
     }
 
@@ -139,7 +143,7 @@ export function do_action(action, id, render_fn) {
         // change the play pattern.
         const previous_state = structuredClone(PROJECT.play_pattern);
 
-        const run_again = run_rules_once(action, id, render_fn);
+        const run_again = run_rules_once(action, id);
         // set next timestamp - after this, it will be handled by the animation loop.
         const anim_speed = OPTIONS.animation_speed ?? DEFAULT_ANIMATION_SPEED;
         UI_STATE.next_timestamp = (run_again) ? performance.now() + anim_speed : null;
@@ -163,10 +167,10 @@ export function do_action(action, id, render_fn) {
 
         // render changes 
         if (success.render_play) {
-            render_fn("play", null);
+            update_play_pattern_el();
         } else if (success.render_ids.size) {
-            [...success.render_ids].forEach((id) => { render_fn("rules", { rule_id: id }); }); // re-render - or just remove if deleted
-            if (success.reordered) render_fn("rule-order", null); // make sure indices are correct
+            [...success.render_ids].forEach(update_rule_el_by_id); // re-render - or just remove if deleted
+            if (success.reordered) update_all_rule_indices(); // make sure indices are correct
         } else {
             console.warn("Action occured, but no re-render specified");
         }
@@ -176,7 +180,7 @@ export function do_action(action, id, render_fn) {
         // run after change
         if (OPTIONS.run_after_change && play_selected) {
             console.log("Running after an edit...");
-            do_action(() => apply_rules(null, null), 'run_after_change', render_fn);
+            do_action(() => apply_rules(null, null), 'run_after_change');
         }
         return;
     } 
@@ -206,16 +210,13 @@ function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
     if (UNDO_STACK.selected.length > undo_stack_limit) UNDO_STACK.selected.shift();
 }
 
-
-
-/** @param {render_callback} render_fn */
-function undo_action(render_fn) {
+function undo_action() {
     const last_stack_type = UNDO_STACK.last_undo_stack_types.pop();
     if (PROJECT.selected.type === 'play' || (last_stack_type === 'play' && PROJECT.selected.type === null)) {
         const last_play_pattern = UNDO_STACK.play_pattern.pop();
         if (last_play_pattern) {
             PROJECT.play_pattern = last_play_pattern;
-            render_fn("play", null);
+            update_play_pattern_el();
             console.log("undo play_pattern", PROJECT.play_pattern.id);
             return;
         }
@@ -229,14 +230,14 @@ function undo_action(render_fn) {
     if (last_rules && last_selection) {
         // undo action on rules
         PROJECT.rules = last_rules;
-        render_fn("rules", null);
+        update_all_rule_els();
 
         // undo selection to state before action
         const old_sel = structuredClone(PROJECT.selected);
         const same = selections_equal(old_sel, last_selection);
         if (!same) {
             PROJECT.selected = last_selection;
-            render_fn("selection", { old_sel, new_sel: last_selection });
+            update_selected_els(old_sel, last_selection);
         }
         console.log("undo rules");
         return;
@@ -248,10 +249,9 @@ function undo_action(render_fn) {
  * Run the rules. This can trigger again in an animation loop.
  * @param {function} action 
  * @param {string} id 
- * @param {render_callback} render_fn 
  * @return {true | undefined} - true if an animation was triggered
  */
-export function run_rules_once(action, id, render_fn) {
+export function run_rules_once(action, id) {
 
     const stats = action(PROJECT.selected); // actually run.
     if (!stats) {
@@ -275,7 +275,7 @@ export function run_rules_once(action, id, render_fn) {
 
     // done
     if (stats.application_count > 0) {
-        render_fn("play", null);
+        update_play_pattern_el();
         if (stats.triggered_animation) return true;
         // TODO - think about what to do with the stats when animated.
     }
@@ -506,19 +506,16 @@ export function do_tool_setting(value, option_key, temp_option_key) {
     }
 }
 
-/**
- * @param {number} change 
- * @param {render_callback} render_fn 
- */
-function zoom_pixel_grids(change, render_fn) {
+/** @param {number} change */
+function zoom_pixel_grids(change) {
     OPTIONS.pixel_scale += change;
     OPTIONS.pixel_scale = Math.max(2, Math.min(OPTIONS.pixel_scale, 100));
     save_options();
     update_css_vars();
 
     // render everything again
-    render_fn("play", null);
-    render_fn("rules", null);
+    update_play_pattern_el();
+    update_all_rule_els();
 }
 
 function update_css_vars() {
@@ -545,15 +542,17 @@ function edit_project() {
     dialog_el.showModal();
 }
 
-/** @param {render_callback} render_fn */
-export function init_starter_project(render_fn) {
+export function set_default_project_and_render() {
     // setup rules and play pattern to the default state
+    clear_project_obj();
+    clear_undo_stack();
+
     set_default_project();
     palette_changed();
     update_css_vars();
 
-    render_fn("play", null);
-    render_fn("rules", null);
+    update_play_pattern_el();
+    update_all_rule_els();
 }
 
 function set_default_project(play_w = 8, play_h = 8) {
@@ -612,8 +611,7 @@ function save_play_png() {
     URL.revokeObjectURL(a.href);
 }
 
-/** @param {render_callback} render_fn */
-function use_file_input_and_load(render_fn) {
+function use_file_input_and_load() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "application/json";
@@ -621,7 +619,7 @@ function use_file_input_and_load(render_fn) {
 
     input.addEventListener("change", () => {
         const file = input.files ? input.files[0] : null;
-        if (file) load_project(file, render_fn);
+        if (file) load_project(file);
     });
 
     document.body.appendChild(input);
@@ -647,18 +645,13 @@ export function palette_changed() {
         const num = i + 1; // start from 1, not 0
         return { value: i, label: i.toString(), keys: [i.toString()] };
     });
-    // the last color needs to be 0, so the values go 1, 2, 3... 0.
-    // palette_setting.options[palette_setting.options.length - 1].value = 0;
 
     // add wildcard
     palette_setting.options.push({ value: -1, label: "Any", keys: [palette_setting.options.length.toString()] });
 }
 
-/**
- * @param {Blob} file 
- * @param {render_callback} render_fn 
- */
-export function load_project(file, render_fn) {
+/** @param {Blob} file */
+export function load_project(file) {
     const reader = new FileReader();
     reader.onload = () => {
         try {
@@ -673,11 +666,11 @@ export function load_project(file, render_fn) {
             clear_undo_stack();
             palette_changed();
             update_css_vars();
-            render_fn("play", null);
-            render_fn("rules", null);
+            update_play_pattern_el();
+            update_all_rule_els();
 
             OPTIONS.selected_palette_value = 1; // color 1 is at index 0
-            render_fn("palette", null);
+            update_tool_button_set('selected_palette_value', OPTIONS.selected_palette_value);
         } catch (err) {
             alert("Invalid project file.");
             console.error(err);
@@ -767,8 +760,7 @@ export function continue_drawing(x, y) {
     return UI_STATE.draw_patterns; // render these
 }
 
-/** @param {render_callback} render_fn */
-export function finish_drawing(render_fn) {
+export function finish_drawing() {
     if (!UI_STATE.is_drawing) return;
     
     UI_STATE.is_drawing = false;
@@ -781,30 +773,29 @@ export function finish_drawing(render_fn) {
         OPTIONS.run_after_change) {
         // run the action after drawing
         console.log("Running after drawing...");
-        do_action(() => apply_rules(null, null), 'run_after_change', render_fn);
+        do_action(() => apply_rules(null, null), 'run_after_change');
     }
 }
 
 /**
  * @param {Selection} target_sel - the selection to move the current selection to
- * @param {render_callback} render_fn 
  */
-export function do_drop_action(target_sel, render_fn) {
+export function do_drop_action(target_sel) {
     // save state for undo
     const play_selected = PROJECT.selected.type === 'play';
     const previous_state = structuredClone(play_selected ? PROJECT.play_pattern : PROJECT.rules);
     const previous_selection = structuredClone(PROJECT.selected);
 
-    const success = move_selection_to_part(PROJECT.selected, target_sel);
+    const success = move_sel_to_dest(PROJECT.selected, target_sel);
     if (success) {
         // change selection
         PROJECT.selected = success.new_selected;
 
         // render changes
-        if (success.render_play) render_fn("play", null);
+        if (success.render_play) update_play_pattern_el();
 
         if (success.render_ids.size) {
-            [...success.render_ids].forEach(id => { render_fn("rules", { rule_id: id }); });
+            [...success.render_ids].forEach(update_rule_el_by_id);
         }
 
         push_to_undo_stack(play_selected, previous_state, previous_selection);

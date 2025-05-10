@@ -1,5 +1,5 @@
-import { PROJECT, generate_id, get_blank_pattern } from "./state.js";
-
+import { PROJECT } from "./state.js";
+import { generate_id, get_blank_pattern } from "./utils.js";
 import { rotate_pattern, resize_pattern, shift_pattern, flip_pattern } from "./edit-pattern.js";
 
 /** @typedef {import('./state.js').Selection} Selection */
@@ -98,7 +98,7 @@ function keep_rules_valid() {
  * @param {Selection} sel 
  * @returns {Selection_Edit_Output | undefined}
  */
-export function duplicate_selection(sel) {
+export function duplicate_sel(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
@@ -142,7 +142,7 @@ export function duplicate_selection(sel) {
  * @param {Selection} sel 
  * @returns {Selection_Edit_Output | undefined}
  */
-export function delete_selection(sel) {
+export function delete_sel(sel) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
@@ -214,7 +214,7 @@ export function delete_selection(sel) {
  * @param {number} direction
  * @returns {Selection_Edit_Output | undefined}
  */
-export function reorder_selection(sel, direction) {
+export function reorder_sel(sel, direction) {
     if (sel.type === null || sel.type === 'play') return;
 
     const object_groups = get_selected_rule_objects(sel);
@@ -261,7 +261,7 @@ export function reorder_selection(sel, direction) {
  * @param {Selection} dest_sel
  * @returns {Selection_Edit_Output | undefined}
  */
-export function move_selection_to_part(sel, dest_sel) {
+export function move_sel_to_dest(sel, dest_sel) {
     // for now, only handle moving patterns to a part
     if (sel.type !== 'pattern' && sel.type !== 'play') return;
 
@@ -337,7 +337,7 @@ export function move_selection_to_part(sel, dest_sel) {
  * @param {Selection} sel 
  * @returns {Selection_Edit_Output | undefined}
  */
-export function clear_selection(sel) {
+export function clear_sel(sel) {
     if (sel.type === null) return;
 
     /** @type {Selection_Edit_Output} */
@@ -406,7 +406,7 @@ export function toggle_rule_flag(sel, flag) {
  * @param {Selection} sel 
  * @returns {Selection_Edit_Output | undefined}
  */
-export function rotate_patterns_in_selection(sel) {
+export function rotate_patterns_in_sel(sel) {
     if (sel.type === null) return;
 
     /** @type {Selection_Edit_Output} */
@@ -447,7 +447,7 @@ export function rotate_patterns_in_selection(sel) {
  * @param {number} y_direction
  * @returns {Selection_Edit_Output | undefined}
  */
-export function resize_patterns_in_selection(sel, x_direction, y_direction) {
+export function resize_patterns_in_sel(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
     /** @type {Selection_Edit_Output} */
@@ -491,7 +491,7 @@ export function resize_patterns_in_selection(sel, x_direction, y_direction) {
  * @param {number} y_direction
  * @returns {Selection_Edit_Output | undefined}
  */
-export function shift_patterns_in_selection(sel, x_direction, y_direction) {
+export function shift_patterns_in_sel(sel, x_direction, y_direction) {
     if (sel.type === null) return;
 
     /** @type {Selection_Edit_Output} */
@@ -520,7 +520,7 @@ export function shift_patterns_in_selection(sel, x_direction, y_direction) {
  * @param {boolean} v_bool - vertical flip
  * @returns {Selection_Edit_Output | undefined}
  */
-export function flip_patterns_in_selection(sel, h_bool, v_bool) {
+export function flip_patterns_in_sel(sel, h_bool, v_bool) {
     if (sel.type === null) return;
 
     /** @type {Selection_Edit_Output} */
