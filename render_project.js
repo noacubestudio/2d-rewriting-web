@@ -127,14 +127,12 @@ function create_rule_el(rule) {
         const part_el = document.createElement("div");
         part_el.className = "rule-part";
         part_el.dataset.id = part.id;
-        part_el.draggable = true;
         add_pointer_events_for_hover(part_el, rule_el, null);
 
         part.patterns.forEach((pattern, pat_index) => {
             const pattern_el = document.createElement("div");
             pattern_el.className = "rule-pattern";
             pattern_el.dataset.id = pattern.id;
-            pattern_el.draggable = true;
             add_pointer_events_for_hover(pattern_el, part_el, rule_el);
 
             const canvas = document.createElement("canvas");
@@ -213,25 +211,33 @@ function create_rule_el(rule) {
     // highlight selected elements in rule
     if (PROJECT.selected.type !== 'play') {
         PROJECT.selected.paths.forEach(sel_path => {
-            if (sel_path.rule_id === rule.id) add_rule_highlight(sel_path, rule_el)
+            if (sel_path.rule_id === rule.id) apply_selection(sel_path, rule_el)
         });
     }
     return rule_el;
 
     /**
+     * Show the selection on the right elements in the rule.
+     * Also make selected patterns and parts draggable.
      * @param {import("./state.js").Selection_Path} sel_path - the selection path to highlight
      * @param {HTMLDivElement} rule_el - the rule element to highlight in
      */
-    function add_rule_highlight(sel_path, rule_el) {
+    function apply_selection(sel_path, rule_el) {
         if ('part_id' in sel_path) {
+            /** @type {HTMLDivElement | null} */
             const part_el = rule_el.querySelector(`.rule-part[data-id="${sel_path.part_id}"]`);
+
             if (part_el && 'pattern_id' in sel_path) {
+                /** @type {HTMLDivElement | null} */
                 const pattern_el = part_el.querySelector(`.rule-pattern[data-id="${sel_path.pattern_id}"]`);
+
                 if (pattern_el) {
                     pattern_el.classList.add("selected");
+                    pattern_el.draggable = true;
                 }
             } else if (part_el) {
                 part_el.classList.add("selected");
+                part_el.draggable = true;
             }
         } else {
             rule_el.classList.add("selected");
@@ -392,25 +398,31 @@ export function update_rule_el_by_id(rule_id) {
 
 export function update_play_pattern_el() {
     if (!SCREEN_CONTAINER_EL) throw new Error("No screen container found");
+
     /** @type {HTMLCanvasElement | null} */
     const canvas = /***/ (document.getElementById("screen-canvas"));
+    /** @type {HTMLDivElement | null} */
     const wrap_el = SCREEN_CONTAINER_EL.querySelector("#screen-container .screen-wrap");
-    const pattern = PROJECT.play_pattern;
     if (!canvas || !wrap_el) throw new Error("No screen canvas or wrap element found");
 
+    // draw pattern again
+    const pattern = PROJECT.play_pattern;
     canvas.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
     canvas.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
     draw_pattern_to_canvas(pattern, canvas);
 
+    // show selection and editor grid if selected, also make draggable
     wrap_el.querySelectorAll(".grid").forEach(grid => grid.remove());
     if (PROJECT.selected.type === 'play') {
         wrap_el.classList.add("selected");
+        wrap_el.draggable = true;
 
         if (OPTIONS.selected_tool === 'drag') return; // no grid for drag tool
         const grid = create_pattern_editor_el(pattern, canvas);
         wrap_el.appendChild(grid);
     } else{
         wrap_el.classList.remove("selected");
+        wrap_el.draggable = false;
     }
     // console.log("Rendered play pattern");
 }
