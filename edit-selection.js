@@ -262,12 +262,12 @@ export function reorder_sel(sel, direction) {
  * @returns {Selection_Edit_Output | undefined}
  */
 export function move_sel_to_dest(sel, dest_sel) {
-    // for now, only handle moving patterns to a part
-    if (sel.type !== 'pattern' && sel.type !== 'play') return;
+    if (sel.type === 'rule' || sel.type === null) return;
 
     /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
+    // case: move play pattern into part of a rule.
     if (sel.type === 'play') {
         const object_dest = get_selected_rule_objects(dest_sel)[0];
         output.render_play = true;
@@ -276,41 +276,62 @@ export function move_sel_to_dest(sel, dest_sel) {
 
         // insert the play pattern into the part
         const new_pattern = deep_clone_with_ids(PROJECT.play_pattern);
-        insert_at(object_dest, new_pattern);
+        insert_pattern_at(object_dest, new_pattern);
         return output;
     }
 
     const objects_to_move = get_selected_rule_objects(sel);
     const object_dest = get_selected_rule_objects(dest_sel)[0];
-
     output.new_selected.paths = [];
 
-    objects_to_move.forEach(({ rule, part, pattern }) => {
-        // ignore if not moved
-        if (part?.id === object_dest.part?.id) return;
+    // case: move pattern(s) into part of a rule.
+    if (sel.type === 'pattern') {
+        objects_to_move.forEach(({ rule, part, pattern }) => {
+            // ignore if not moved
+            if (part?.id === object_dest.part?.id) return;
 
-        // deletion
-        if (!part || !pattern) throw new Error(`Can't remove: ${JSON.stringify(sel)}`);
+            // deletion - only if not the last pattern in the part
+            if (!part || !pattern) throw new Error(`Can't remove: ${JSON.stringify(sel)}`);
+            if (part.patterns.length >= 2) {
+                const index = part.patterns.findIndex(p => p.id === pattern.id);
+                part.patterns.splice(index, 1);
+            }
+            output.render_ids.add(rule.id); // deselected or removed
 
-        // after deletion, there has to be at least one pattern left, just keep the pattern otherwise
-        if (part.patterns.length >= 2) {
-            const index = part.patterns.findIndex(p => p.id === pattern.id);
-            part.patterns.splice(index, 1);
-            output.render_ids.add(rule.id);
-        }
+            // insertion
+            const new_pattern = deep_clone_with_ids(pattern);
+            insert_pattern_at(object_dest, new_pattern);
+        });
+        return output;
+    }
 
-        // insertion
-        const new_pattern = deep_clone_with_ids(pattern);
-        insert_at(object_dest, new_pattern);
-    });
+    // case: move part(s) into a rule.
+    if (sel.type === 'part') {
+        objects_to_move.forEach(({ rule, part }) => {
+            // ignore if not moved
+            if (rule?.id === object_dest.rule?.id) return;
 
-    return output;
+            // deletion - only if not the last part in the rule
+            if (!part) throw new Error(`Can't remove: ${JSON.stringify(sel)}`);
+            if (rule.parts.length >= 2) {
+                const index = rule.parts.findIndex(p => p.id === part.id);
+                rule.parts.splice(index, 1);
+            }
+            output.render_ids.add(rule.id); // deselected or removed
+
+            // insertion
+            const new_part = deep_clone_with_ids(part);
+            insert_part_at(object_dest, new_part);
+        });
+        return output;
+    }
+
 
     /**
      * @param {{ rule: Rule, part: Part | null, pattern: Pattern | null }} object_dest 
      * @param {Pattern} new_pattern 
      */
-    function insert_at(object_dest, new_pattern) {
+    function insert_pattern_at(object_dest, new_pattern) {
         if (!object_dest.part) throw new Error(`Can't insert at: ${JSON.stringify(dest_sel)}`);
         const insert_index = object_dest.part.patterns.length;
         
@@ -330,6 +351,20 @@ export function move_sel_to_dest(sel, dest_sel) {
                 }
             });
         }
+    }
+
+    /**
+     * @param {{ rule: Rule, part: Part | null, pattern: Pattern | null }} object_dest
+     * @param {Part} new_part 
+     */
+    function insert_part_at(object_dest, new_part) {
+        if (!object_dest.rule) throw new Error(`Can't insert at: ${JSON.stringify(dest_sel)}`);
+        const insert_index = object_dest.rule.parts.length;
+        
+        object_dest.rule.parts.splice(insert_index, 0, new_part);
+        const dest_sel_path = { rule_id: object_dest.rule.id, part_id: new_part.id };
+        output.new_selected.paths.push(dest_sel_path);
+        output.render_ids.add(object_dest.rule.id);
     }
 }
 
@@ -375,6 +410,7 @@ export function clear_sel(sel) {
             }];
             // reset certain properties
             rule.comment = undefined;
+            rule.show_comment = undefined;
             rule.keybind = undefined;
             output.render_ids.add(rule.id);
         });

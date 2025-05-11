@@ -1,7 +1,7 @@
 import { PROJECT, OPTIONS, UI_STATE } from "./state.js";
 import { value_to_color, selections_equal } from "./utils.js";
 
-import { do_drop_action, eyedrop, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
+import { drop_into_sel, eyedrop, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
 
 import { select_tool_button, update_action_buttons_for_selection } from "./render_menus.js";
 
@@ -127,6 +127,7 @@ function create_rule_el(rule) {
         const part_el = document.createElement("div");
         part_el.className = "rule-part";
         part_el.dataset.id = part.id;
+        part_el.draggable = true;
         add_pointer_events_for_hover(part_el, rule_el, null);
 
         part.patterns.forEach((pattern, pat_index) => {
@@ -162,21 +163,41 @@ function create_rule_el(rule) {
 
         part_el.addEventListener("dragover", (e) => {
             e.preventDefault(); // allow drop
+            if (PROJECT.selected.type === 'part') return; // can drag patterns/play between parts
             part_el.classList.add("drop-target");
         });
         part_el.addEventListener("dragleave", () => {
             part_el.classList.remove("drop-target");
         });
-
         part_el.addEventListener("drop", (e) => {
             e.preventDefault();
             part_el.classList.remove("drop-target");
-            const target_sel = get_new_sel(/** @type {HTMLElement} */ (e.target));
-
-            do_drop_action(target_sel);
+            
+            if (PROJECT.selected.type === 'pattern' || PROJECT.selected.type === 'play') {
+                console.log(`Dropped pattern(s) on part: ${part_el.dataset.id}`);
+                drop_into_sel(get_new_sel(part_el));
+            }
         });
 
         rule_parts.appendChild(part_el);
+    });
+
+    rule_el.addEventListener("dragover", (e) => {
+        e.preventDefault(); // allow drop
+        if (PROJECT.selected.type !== 'part') return; // can drag parts between rules
+        rule_el.classList.add("drop-target");
+    });
+    rule_el.addEventListener("dragleave", () => {
+        rule_el.classList.remove("drop-target");
+    });
+    rule_el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        rule_el.classList.remove("drop-target");
+
+        if (PROJECT.selected.type === 'part') {
+            console.log(`Dropped part(s) on rule: ${rule_el.dataset.id}`);
+            drop_into_sel(get_new_sel(rule_el));
+        }
     });
 
     // indicate if the rule starts animation

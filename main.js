@@ -1,4 +1,4 @@
-import { PROJECT, OPTIONS, UI_STATE, DEFAULT_ANIMATION_SPEED, load_options } from "./state.js";
+import { PROJECT, OPTIONS, UI_STATE, DEFAULT_ANIMATION_SPEED, load_options as load_options_locally } from "./state.js";
 
 // successful actions cause new rendering
 import { ACTIONS, TOOL_SETTINGS, set_default_project_and_render, load_project, apply_rules } from "./actions.js";
@@ -11,8 +11,10 @@ import { update_selected_els, create_selection_listeners } from "./render_projec
 /** @typedef {import('./state.js').Options} Options */
 
 
-load_options(); // load options from local storage
-set_true_vh(); // vh css fix
+// init
+
+load_options_locally();
+set_true_vh();
 
 create_selection_listeners();
 create_dialog_listeners();
