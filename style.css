@@ -128,6 +128,9 @@ button:active {
 .tool-settings button.active {
     box-shadow: inset 0 0 0 2px #0ff, inset 0 0 0 3px black;
 }
+.tool-settings button.temp_active {
+    box-shadow: inset 0 0 0 2px #aaa;
+}
 .actions button.hidden {
     display: none;
 }

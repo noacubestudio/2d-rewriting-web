@@ -138,16 +138,19 @@ export function update_tool_button_set(group_id, selected_value) {
 /**
  * @param {keyof Options} group_id - the group of buttons to update
  * @param {any} value - the value that needs to be highlighted
+ * @param {boolean} [is_temp] - if true, the button will be highlighted as temporary
  */
-export function select_tool_button(group_id, value) {
+export function select_tool_button(group_id, value, is_temp) {
     if (!TOOL_SETTINGS_CONTAINER_EL) throw new Error("No tool settings container found");
+
     /** @type {NodeListOf<HTMLElement>} */
     const btns_in_group = TOOL_SETTINGS_CONTAINER_EL.querySelectorAll(`button[data-group="${group_id}"]`);
     btns_in_group.forEach(b => {
+        b.classList.remove("active");
+        b.classList.remove("temp_active");
+
         if (b.dataset.option_value === value.toString()) {
-            b.classList.add("active")
-        } else {
-            b.classList.remove("active")
+            b.classList.add(is_temp ? "temp_active" : "active");
         }
     });
 }

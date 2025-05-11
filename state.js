@@ -4,7 +4,7 @@ export const UNDO_STACK_LIMIT_PLAY = 256;
 export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#036965"];
 export const DEFAULT_ANIMATION_SPEED = 100; // milliseconds
 
-/** @typedef {"brush" | "rect" | "line" | "fill" | "drag" | "eyedropper"} Tool */
+/** @typedef {"brush" | "rect" | "line" | "fill" | "drag" | "eyedropper" | "select"} Tool */
 
 /**
  * @typedef {Object} Options
@@ -31,7 +31,7 @@ export const OPTIONS = {
 }
 
 // load options from localstorage if possible
-export function load_options() {
+export function load_options_locally() {
     const saved_options = localStorage.getItem('options');
     if (saved_options) {
         try {
@@ -113,7 +113,6 @@ export function load_options() {
 
 /** @type {Project} */
 export const PROJECT = /***/ ({});
-
 export function clear_project_obj(tile_size = OPTIONS.default_tile_size, palette = OPTIONS.default_palette) {
     PROJECT.tile_size = tile_size;
     PROJECT.palette = palette;

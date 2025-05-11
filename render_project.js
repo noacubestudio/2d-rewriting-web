@@ -461,8 +461,8 @@ export function create_selection_listeners() {
         const old_sel = structuredClone(PROJECT.selected);
         const new_sel = get_new_sel(target);
         
-        const ctrl_held = e.ctrlKey || e.metaKey; // MacOS
-        if (ctrl_held) {
+        const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+        if (current_tool === 'select') {
             if (PROJECT.selected.type !== new_sel.type) {
                 // if the type is different, restart selection
                 PROJECT.selected = new_sel;

@@ -35,8 +35,8 @@ import { update_all_rule_els, update_all_rule_indices, update_play_pattern_el, u
 
 /** @type {Action[]} */
 export const ACTIONS = [
-    { id: "run"      , hint: "✅ Run Selected", keys: ["Enter"                ], action: /** @param {Selection} s */ (s) => apply_rules(s, null) },
-    { id: "run_all"  , hint: "✅ Run All"     , keys: [" "                    ], action: () => apply_rules(null, null) },
+    { id: "run"      , hint: "▶️ Run Selected", keys: ["Enter"                ], action: /** @param {Selection} s */ (s) => apply_rules(s, null) },
+    { id: "run_all"  , hint: "▶️ Run All"     , keys: [" "                    ], action: () => apply_rules(null, null) },
     { id: "stop"     , hint: "⏸️ Stop"        , keys: ["Escape"               ], action: () => stop_rules() },
 
     // actions that are not undoable themselves. render callbacks for most other functions are in do_action()
@@ -117,6 +117,7 @@ export const TOOL_SETTINGS = {
         { value: 'fill'      , label: "🪣", keys: ["f"] },
         { value: 'eyedropper', label: "🔍", keys: ["i"] },
         { value: 'drag'      , label: "🫳", keys: ["m"] },
+        { value: 'select'    , label: "✅", keys: ["s"] },
     ]},
     run_after_change:       { label: "Run after change", options: [ 
         { value: false, label: "Off", keys: null },
@@ -501,7 +502,8 @@ export function do_tool_setting(value, option_key, temp_option_key) {
     }
 
     if (option_key === 'selected_tool' && (value === 'drag' || previous_value === 'drag')) {
-        // drag tool does not show the grid, so update the selected rules.
+        // if the drag tool is selected or deselected, the selected element should be updated
+        // to hide or show the editor grid.
         return { render_selected: true };
     }
 }

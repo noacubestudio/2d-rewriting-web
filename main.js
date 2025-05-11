@@ -1,4 +1,4 @@
-import { PROJECT, OPTIONS, UI_STATE, DEFAULT_ANIMATION_SPEED, load_options as load_options_locally } from "./state.js";
+import { PROJECT, OPTIONS, UI_STATE, DEFAULT_ANIMATION_SPEED, load_options_locally } from "./state.js";
 
 // successful actions cause new rendering
 import { ACTIONS, TOOL_SETTINGS, set_default_project_and_render, load_project, apply_rules } from "./actions.js";
@@ -90,11 +90,11 @@ document.addEventListener("keydown", (e) => {
 
                 // set (temp or not)
                 const result = do_tool_setting(binding.value, group_key, group.temp_option_key);
-                if (group.temp_option_key) TEMP_TOOL_SETTINGS.add({ value: binding.value, group });
+                if (group.temp_option_key) TEMP_TOOL_SETTINGS.add({ value: binding.value, group, option_key: group_key });
 
                 // render
                 if (result?.render_selected) update_selected_els(PROJECT.selected, null);
-                if (!group.temp_option_key) select_tool_button(/** @type {keyof Options} */ (group_key), binding.value);
+                select_tool_button(/** @type {keyof Options} */ (group_key), binding.value, (group.temp_option_key));
                 break;
             }
         }
@@ -105,21 +105,20 @@ document.addEventListener("keyup", (e) => {
     const duration = performance.now() - (KEY_TIMESTAMPS.get(e.key) ?? performance.now());
     const temp_only = (KEY_TIMESTAMPS.size === 1 && duration > 200);
 
-    if (TEMP_TOOL_SETTINGS.size) {
-        for (const { value, group } of TEMP_TOOL_SETTINGS) {
-            // reset temp
-            const result = do_tool_setting(undefined, undefined, group.temp_option_key);
+    // temp settings now need to be fully applied or reset
+    for (const { value, group, option_key } of TEMP_TOOL_SETTINGS) {
+        // reset temp
+        const result = do_tool_setting(undefined, undefined, group.temp_option_key);
+        if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+
+        if (!temp_only) {
+            // normal setting
+            const result = do_tool_setting(value, option_key, null);
             if (result?.render_selected) update_selected_els(PROJECT.selected, null);
-
-            if (!temp_only) {
-                // normal setting
-                const result = do_tool_setting(value, group.option_key, null);
-                if (result?.render_selected) update_selected_els(PROJECT.selected, null);
-
-                // only show now for settings that can be temporary but were finally set
-                select_tool_button(group.option_key, group.value);
-            }
         }
+
+        // for settings that can be temporary but were finally set
+        select_tool_button(option_key, OPTIONS[/** @type {keyof Options} */ (option_key)]);
     }
 
     KEYS_DOWN.delete(e.key);
