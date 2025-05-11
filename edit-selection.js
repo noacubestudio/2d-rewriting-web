@@ -286,7 +286,10 @@ export function move_sel_to_dest(sel, dest_sel) {
 
     // case: move pattern(s) into part of a rule.
     if (sel.type === 'pattern') {
+        let moved = 0;
         objects_to_move.forEach(({ rule, part, pattern }) => {
+            output.render_ids.add(rule.id); // deselected or removed
+
             // ignore if not moved
             if (part?.id === object_dest.part?.id) return;
 
@@ -296,18 +299,21 @@ export function move_sel_to_dest(sel, dest_sel) {
                 const index = part.patterns.findIndex(p => p.id === pattern.id);
                 part.patterns.splice(index, 1);
             }
-            output.render_ids.add(rule.id); // deselected or removed
 
             // insertion
             const new_pattern = deep_clone_with_ids(pattern);
             insert_pattern_at(object_dest, new_pattern);
+            moved++;
         });
-        return output;
+        if (moved) return output;
     }
 
     // case: move part(s) into a rule.
     if (sel.type === 'part') {
+        let moved = 0;
         objects_to_move.forEach(({ rule, part }) => {
+            output.render_ids.add(rule.id); // deselected or removed
+
             // ignore if not moved
             if (rule?.id === object_dest.rule?.id) return;
 
@@ -317,13 +323,13 @@ export function move_sel_to_dest(sel, dest_sel) {
                 const index = rule.parts.findIndex(p => p.id === part.id);
                 rule.parts.splice(index, 1);
             }
-            output.render_ids.add(rule.id); // deselected or removed
 
             // insertion
             const new_part = deep_clone_with_ids(part);
             insert_part_at(object_dest, new_part);
+            moved++;
         });
-        return output;
+        if (moved) return output;
     }
 
 
