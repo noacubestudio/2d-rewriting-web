@@ -20,7 +20,7 @@ create_selection_listeners();
 create_dialog_listeners();
 
 set_default_project_and_render();
-render_menus();
+render_menus(); // requires basic project to be set up first
 
 
 /** 

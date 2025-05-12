@@ -144,7 +144,7 @@ function create_rule_el(rule) {
             const is_selected = PROJECT.selected.type === 'pattern' && 
                 PROJECT.selected.paths.find(p => p.pattern_id === pattern.id);
 
-            if (is_selected && OPTIONS.selected_tool !== 'drag') {
+            if (is_selected && OPTIONS.selected_tool !== 'select') {
                 const grid = create_pattern_editor_el(pattern, canvas);
                 pattern_el.appendChild(grid);
             }
@@ -271,7 +271,7 @@ function create_pattern_editor_el(pattern, canvas) {
 
     grid.addEventListener("pointerdown", (e) => {
         const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
-        if (current_tool === 'drag') return; // not a drawing tool.
+        if (current_tool === 'select') return; // not a drawing tool.
         e.preventDefault();
 
         const cell = /** @type {HTMLElement | null} */ (e.target);
@@ -417,7 +417,7 @@ export function update_play_pattern_el() {
         wrap_el.classList.add("selected");
         wrap_el.draggable = true;
 
-        if (OPTIONS.selected_tool === 'drag') return; // no grid for drag tool
+        if (OPTIONS.selected_tool === 'select') return; // no grid for select tool
         const grid = create_pattern_editor_el(pattern, canvas);
         wrap_el.appendChild(grid);
     } else{

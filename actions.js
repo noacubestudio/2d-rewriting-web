@@ -9,7 +9,7 @@ import { get_selected_rule_patterns, get_selected_rule_objects, move_sel_to_dest
 import { toggle_rule_flag, duplicate_sel, delete_sel, clear_sel, reorder_sel } from "./edit-selection.js";
 import { resize_patterns_in_sel, rotate_patterns_in_sel, flip_patterns_in_sel, shift_patterns_in_sel } from "./edit-selection.js";
 
-import { update_tool_button_set } from "./render_menus.js";
+import { update_action_buttons_for_selection, update_tool_button_set, update_undo_button } from "./render_menus.js";
 import { update_all_rule_els, update_all_rule_indices, update_play_pattern_el, update_rule_el_by_id, update_selected_els } from "./render_project.js";
 
 /** @typedef {import('./state.js').Rule} Rule */
@@ -84,9 +84,9 @@ export const ACTIONS = [
     { id: "shift"    , hint: "⬇️ Shift Down"  , keys: ["ArrowDown" , "Alt"    ], action: /** @param {Selection} s */ (s) => shift_patterns_in_sel(s,0,1) },
 ];
 export const ACTION_BUTTON_VISIBILITY = {
-    nothing_selected:   ['save', 'load', 'new', 'scale', 'settings'],
+    nothing_selected:   ['save', 'load', 'new', 'scale', 'settings', 'input'],
     rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag'],
-    play_selected:      ['savepng', 'input'],
+    play_selected:      ['savepng'],
     something_selected: ['resize', 'rotate', 'flip', 'shift', 'clear'],
 };
 const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settings', 'undo', 'stop'];
@@ -116,7 +116,6 @@ export const TOOL_SETTINGS = {
         { value: 'rect'      , label: "🔳", keys: ["t"] },
         { value: 'fill'      , label: "🪣", keys: ["f"] },
         { value: 'eyedropper', label: "🔍", keys: ["i"] },
-        { value: 'drag'      , label: "🫳", keys: ["m"] },
         { value: 'select'    , label: "✅", keys: ["s"] },
     ]},
     run_after_change:       { label: "Run after change", options: [ 
@@ -205,6 +204,8 @@ function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
     UNDO_STACK.last_undo_stack_types.push(undo_stack_type);
     if (undo_stack.length > undo_stack_limit) undo_stack.shift();
 
+    update_undo_button(); // show the last type of undoable action
+
     if (play_selected) return;
     // also push the selection to the undo stack
     UNDO_STACK.selected.push(selection_to_push || PROJECT.selected);
@@ -213,11 +214,13 @@ function push_to_undo_stack(play_selected, state_to_push, selection_to_push) {
 
 function undo_action() {
     const last_stack_type = UNDO_STACK.last_undo_stack_types.pop();
+
     if (PROJECT.selected.type === 'play' || (last_stack_type === 'play' && PROJECT.selected.type === null)) {
         const last_play_pattern = UNDO_STACK.play_pattern.pop();
         if (last_play_pattern) {
             PROJECT.play_pattern = last_play_pattern;
             update_play_pattern_el();
+            update_undo_button();
             console.log("undo play_pattern", PROJECT.play_pattern.id);
             return;
         }
@@ -232,6 +235,7 @@ function undo_action() {
         // undo action on rules
         PROJECT.rules = last_rules;
         update_all_rule_els();
+        update_undo_button();
 
         // undo selection to state before action
         const old_sel = structuredClone(PROJECT.selected);
@@ -501,9 +505,8 @@ export function do_tool_setting(value, option_key, temp_option_key) {
         save_options();
     }
 
-    if (option_key === 'selected_tool' && (value === 'drag' || previous_value === 'drag')) {
-        // if the drag tool is selected or deselected, the selected element should be updated
-        // to hide or show the editor grid.
+    if (option_key === 'selected_tool' && (value === 'select' || previous_value === 'select')) {
+        // from/ to a brush tool, so show/ hide the editor grid. requires a re-render.
         return { render_selected: true };
     }
 }
@@ -673,6 +676,7 @@ export function load_project(file) {
 
             OPTIONS.selected_palette_value = 1; // color 1 is at index 0
             update_tool_button_set('selected_palette_value', OPTIONS.selected_palette_value);
+            update_action_buttons_for_selection(); // nothing selected, undo reset
         } catch (err) {
             alert("Invalid project file.");
             console.error(err);

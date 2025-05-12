@@ -4,7 +4,7 @@ export const UNDO_STACK_LIMIT_PLAY = 256;
 export const INITIAL_DEFAULT_PALETTE = ["#131916", "#ffffff", "#6cd9b5", "#036965"];
 export const DEFAULT_ANIMATION_SPEED = 100; // milliseconds
 
-/** @typedef {"brush" | "rect" | "line" | "fill" | "drag" | "eyedropper" | "select"} Tool */
+/** @typedef {"brush" | "rect" | "line" | "fill" | "eyedropper" | "select"} Tool */
 
 /**
  * @typedef {Object} Options

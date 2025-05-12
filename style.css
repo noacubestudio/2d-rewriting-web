@@ -43,7 +43,7 @@ body {
     margin: 0;
     padding: 0;
     background: #222;
-    font-size: 14px;
+    font-size: 13px;
     font-family: 'RecVar', 'Segoe UI Variable', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
 }
@@ -58,33 +58,6 @@ body {
     display: flex;
     flex-direction: row;
     overflow-y: hidden;
-}
-
-button {
-    background: #333;
-    color: #fff;
-    outline: 1px solid #777;
-    outline-offset: -0.5px;
-    border: none;
-    border-radius: 0;
-    padding: 6px 12px;
-    cursor: pointer;
-    font-weight: 600;
-    height: 2.4em;
-    line-height: 0;
-    user-select: none;
-    -webkit-user-select: none;
-}
-button:hover {
-    background: #444;
-}
-button:active {
-    background: #555;
-}
-.color-button, .color-button:hover, .color-button:active {
-    background-color: #333;
-    background-image: radial-gradient(circle at 50% 50%, #555 25%, transparent 25%);
-    background-size: calc(var(--pixel-scale) * 1px) calc(var(--pixel-scale) * 1px);
 }
 
 .actions, .tool-settings {
@@ -115,11 +88,45 @@ button:active {
     padding: 0 0.6em 0 2px;
 }
 
+button {
+    background: #333;
+    color: #fff;
+    outline: 1px solid #777;
+    outline-offset: -0.5px;
+    border: none;
+    border-radius: 0;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    height: 2.4em;
+    line-height: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+button:hover {
+    background: #444;
+}
+button:active {
+    background: #555;
+}
+button.disabled {
+    background: #333;
+    color: #777;
+    cursor: default;
+}
+.color-button, .color-button:hover, .color-button:active {
+    background-color: #333;
+    background-image: radial-gradient(circle at 50% 50%, #555 25%, transparent 25%);
+    background-size: calc(var(--pixel-scale) * 1px) calc(var(--pixel-scale) * 1px);
+}
+
 .actions button {
-    padding: 6px 12px 6px 6px;
+    height: 2.8em;
+    padding: 0.7em 0.9em 0.7em 0.7em;
 }
 .tool-settings button {
-    padding: 6px 12px;
+    height: 2.8em;
+    padding: 0.7em 0.9em;
     min-width: 40px;
 }
 .tool-settings button:hover {

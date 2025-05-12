@@ -109,13 +109,23 @@ export function update_action_buttons_for_selection() {
         }
     });
 
-    // some actions change based on selection
+    update_undo_button();
+}
+
+export function update_undo_button() {
+    if (!ACTIONS_CONTAINER_EL) throw new Error("No actions container found");
     const undo_button = ACTIONS_CONTAINER_EL.querySelector(`.action-undo`);
-    if (undo_button) {
-        const last_sel_type = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
-        const show_play = sel_type === 'play' || (sel_type === null && last_sel_type === "play");
-        undo_button.textContent = "♻️ Undo " + (show_play ? "(Main Grid)" : "(Rule Editor)");
+    if (!undo_button) throw new Error("Undo button not found");
+
+    const last_sel_type = UNDO_STACK.last_undo_stack_types[UNDO_STACK.last_undo_stack_types.length - 1];
+    const show_play = PROJECT.selected.type === 'play' || (PROJECT.selected.type === null && last_sel_type === "play");
+    const undo_length = show_play ? UNDO_STACK.play_pattern.length : UNDO_STACK.rules.length;
+    if (undo_length === 0) {
+        undo_button.classList.add("disabled");
+    } else {
+        undo_button.classList.remove("disabled");
     }
+    undo_button.textContent = "♻️ Undo " + (show_play ? "Main Grid" : "Rules" ) + " (" + undo_length + ")";
 }
 
 /** 
@@ -188,6 +198,7 @@ export function create_dialog_listeners() {
     
             // reset the project
             set_default_project_and_render();
+            update_action_buttons_for_selection(); // nothing selected, undo reset
         }
     });
     dialog_els.edit_project.addEventListener("close", () => {
