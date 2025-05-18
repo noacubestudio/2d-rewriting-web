@@ -1,7 +1,7 @@
 import { PROJECT, OPTIONS, UI_STATE } from "./state.js";
 import { value_to_color, selections_equal } from "./utils.js";
 
-import { drop_into_sel, eyedrop, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
+import { drop_sel_into, eyedrop, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
 
 import { select_tool_button, update_action_buttons_for_selection } from "./render_menus.js";
 
@@ -173,7 +173,7 @@ function create_rule_el(rule) {
             
             if (PROJECT.selected.type === 'pattern' || PROJECT.selected.type === 'play') {
                 console.log(`Dropped pattern(s) on part: ${part_el.dataset.id}`);
-                drop_into_sel(get_new_sel(part_el));
+                drop_sel_into(get_new_sel(part_el));
             }
         });
 
@@ -194,7 +194,7 @@ function create_rule_el(rule) {
 
         if (PROJECT.selected.type === 'part') {
             console.log(`Dropped part(s) on rule: ${rule_el.dataset.id}`);
-            drop_into_sel(get_new_sel(rule_el));
+            drop_sel_into(get_new_sel(rule_el));
         }
     });
 
@@ -499,6 +499,32 @@ export function create_selection_listeners() {
         PROJECT.selected = new_sel;
         update_selected_els(old_sel, new_sel);
         update_action_buttons_for_selection();
+    });
+}
+export function create_play_pattern_listeners() {
+    if (!SCREEN_CONTAINER_EL) throw new Error("No screen container found");
+    /** @type {HTMLDivElement | null} */
+    const main_el = SCREEN_CONTAINER_EL.querySelector("#screen-container .screen-wrap");
+    if (!main_el) throw new Error("No screen wrap element found");
+
+    main_el.addEventListener("dragover", (e) => {
+        e.preventDefault(); // allow drop
+        if (PROJECT.selected.type !== 'pattern') return; // can drag patterns onto play pattern
+        main_el.classList.add("drop-target");
+    });
+    main_el.addEventListener("dragleave", () => {
+        main_el.classList.remove("drop-target");
+    });
+    main_el.addEventListener("drop", (e) => {
+        e.preventDefault();
+        main_el.classList.remove("drop-target");
+        
+        if (PROJECT.selected.type === 'pattern') {
+            console.log(`Dropped pattern(s) on play pattern.`);
+            /** @type {Selection} */
+            const target_sel = { type: 'play', paths: [] };
+            drop_sel_into(target_sel);
+        }
     });
 }
 

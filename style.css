@@ -254,6 +254,10 @@ button.disabled {
 .screen-wrap:hover {
     outline: 1px solid #999;
 }
+.screen-wrap.drop-target {
+    outline: 1px solid #ddd;
+    outline-offset: 0.5px;
+}
 .screen-wrap.selected {
     outline: 1px solid #0ff;
     outline-offset: 0.5px;

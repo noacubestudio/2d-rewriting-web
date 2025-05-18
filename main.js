@@ -6,7 +6,7 @@ import { do_action, do_tool_setting, finish_drawing, run_rules_once } from "./ac
 
 // for initial rendering and the window/document events below
 import { render_menus, select_tool_button, create_dialog_listeners } from "./render_menus.js";
-import { update_selected_els, create_selection_listeners } from "./render_project.js";
+import { update_selected_els, create_selection_listeners, create_play_pattern_listeners } from "./render_project.js";
 
 /** @typedef {import('./state.js').Options} Options */
 
@@ -17,6 +17,7 @@ load_options_locally();
 set_true_vh();
 
 create_selection_listeners();
+create_play_pattern_listeners();
 create_dialog_listeners();
 
 set_default_project_and_render();

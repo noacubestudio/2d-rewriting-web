@@ -267,6 +267,19 @@ export function move_sel_to_dest(sel, dest_sel) {
     /** @type {Selection_Edit_Output} */
     const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
 
+    // case: move rule pattern on the play pattern.
+    if (dest_sel.type === 'play') {
+        output.render_play = true;
+
+        // insert the rules pattern into the play pattern
+        const first_pattern = get_selected_rule_patterns(sel)[0] || null;
+        if (!first_pattern) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
+        PROJECT.play_pattern.pixels = structuredClone(first_pattern.pixels);
+        PROJECT.play_pattern.width = first_pattern.width;
+        PROJECT.play_pattern.height = first_pattern.height;
+        return output;
+    }
+
     // case: move play pattern into part of a rule.
     if (sel.type === 'play') {
         const object_dest = get_selected_rule_objects(dest_sel)[0];

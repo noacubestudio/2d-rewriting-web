@@ -786,16 +786,28 @@ export function finish_drawing() {
 /**
  * @param {Selection} target_sel - the selection to move the current selection to
  */
-export function drop_into_sel(target_sel) {
+export function drop_sel_into(target_sel) {
+    if (target_sel.type === 'play') {
+        // keep rules the same, only need to store undo for the play pattern
+        const previous_state = structuredClone(PROJECT.play_pattern);
+        const success = move_sel_to_dest(PROJECT.selected, target_sel);
+        if (!success) return;
+        // select, render, and push to undo stack
+        PROJECT.selected = success.new_selected;
+        update_play_pattern_el();
+        push_to_undo_stack(true, previous_state, undefined);
+        return;
+    }
+
     // save state for undo
     const previous_state = structuredClone(PROJECT.rules);
     const previous_selection = structuredClone(PROJECT.selected);
 
     const success = move_sel_to_dest(PROJECT.selected, target_sel);
-    if (success) {
-        // select, render, and push to undo stack
-        PROJECT.selected = success.new_selected;
-        [...success.render_ids].forEach(update_rule_el_by_id);
-        push_to_undo_stack(false, previous_state, previous_selection);
-    }
+    if (!success) return;
+    // select, render, and push to undo stack
+    PROJECT.selected = success.new_selected;
+    [...success.render_ids].forEach(update_rule_el_by_id);
+    if (success.render_play) update_play_pattern_el();
+    push_to_undo_stack(false, previous_state, previous_selection);
 }
