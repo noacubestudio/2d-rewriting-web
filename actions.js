@@ -2,7 +2,7 @@ import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
 import { UNDO_STACK_LIMIT_PLAY, UNDO_STACK_LIMIT_RULES, RULE_APPLICATION_LIMIT, DEFAULT_ANIMATION_SPEED } from "./state.js";
 import { clear_undo_stack, clear_project_obj } from "./state.js";
 
-import { generate_id, get_blank_pattern, selections_equal } from "./utils.js";
+import { generate_id, get_blank_pattern, get_short_timestamp, selections_equal, get_closest_palette_index } from "./utils.js";
 
 import { draw_in_pattern, rotate_pattern, flip_pattern, apply_rule } from "./edit-pattern.js";
 import { get_selected_rule_patterns, get_selected_rule_objects, move_sel_to_dest } from "./edit-selection.js";
@@ -42,7 +42,8 @@ export const ACTIONS = [
     // actions that are not undoable themselves. render callbacks for most other functions are in do_action()
     { id: "undo"     , hint: "♻️ Undo Action" , keys: ["z"                    ], action: () => undo_action() },
     { id: "undo"     , hint: null             , keys: ["u"                    ], action: () => undo_action() },
-    { id: "load"     , hint: "📂 Load"        , keys: ["Shift", "o"           ], action: () => use_file_input_and_load() },
+    { id: "load"     , hint: "📂 Load"        , keys: ["Shift", "o"           ], action: () => use_file_input_and_load(load_project, false) },
+    { id: "loadpng"  , hint: "📷 Load PNG"    , keys: null                     , action: () => use_file_input_and_load(load_play_from_image, true) },
     { id: "save"     , hint: "💾 Save"        , keys: ["Shift", "s"           ], action: () => save_project() },
     { id: "savepng"  , hint: "📷 Save PNG"    , keys: null                     , action: () => save_play_png() },
     { id: "new"      , hint: "❇️ New"         , keys: ["Shift", "n"           ], action: () => new_project() },
@@ -86,10 +87,10 @@ export const ACTIONS = [
 export const ACTION_BUTTON_VISIBILITY = {
     nothing_selected:   ['save', 'load', 'new', 'scale', 'settings', 'input'],
     rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag'],
-    play_selected:      ['savepng'],
+    play_selected:      ['savepng', 'loadpng'],
     something_selected: ['resize', 'rotate', 'flip', 'shift', 'clear'],
 };
-const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'new', 'scale', 'settings', 'undo', 'stop'];
+const NOT_UNDOABLE_ACTIONS = ['save', 'savepng', 'load', 'loadpng', 'new', 'scale', 'settings', 'undo', 'stop'];
 
 
 /** 
@@ -599,7 +600,7 @@ function save_project() {
     
     const a = document.createElement("a");
     a.href = url;
-    a.download = "project.json";
+    a.download = `Project ${get_short_timestamp()}.json`;
     a.click();
     
     URL.revokeObjectURL(url);
@@ -610,21 +611,26 @@ function save_play_png() {
     const pixel_canvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById("screen-canvas"));
     if (!pixel_canvas) throw new Error("Main canvas element not found");
     a.href = pixel_canvas.toDataURL("image/png");
-    a.download = "play_pattern.png";
+    a.download = `Pattern ${get_short_timestamp()} @x${OPTIONS.pixel_scale}.png`;
     a.click();
 
     URL.revokeObjectURL(a.href);
 }
 
-function use_file_input_and_load() {
+/**
+ * Open a file input to load a project or play state.
+ * @param {function} load_function - function to call when the file is loaded
+ * @param {boolean} needs_image - whether the file is an image or a json file
+ */
+function use_file_input_and_load(load_function, needs_image) {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "application/json";
+    input.accept = needs_image ? "image/png" : "application/json";
     input.style.display = "none";
 
     input.addEventListener("change", () => {
         const file = input.files ? input.files[0] : null;
-        if (file) load_project(file);
+        if (file) load_function(file, file.name.split(".")[0]);
     });
 
     document.body.appendChild(input);
@@ -683,6 +689,68 @@ export function load_project(file) {
         }
     };
     reader.readAsText(file);
+}
+
+/** 
+ * @param {Blob} file
+ * @param {string} name
+ */
+export function load_play_from_image(file, name) {
+    console.log("Loading play pattern from image:", name);
+    const reader = new FileReader();
+    reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+            // if the image name ends in '@x{number}', use that as the zoom scale
+            // also make sure that the zoom scale is increased if the image is too big, to only sample every nth pixel.
+            const MAX_PLAY_PATTERN_SIZE = 128;
+            const fit_scale = Math.floor(Math.max(img.width, img.height) / MAX_PLAY_PATTERN_SIZE);
+
+            let zoom_scale = parseInt(name.match(/@x(\d+)/) ?.[1] || '1');
+            zoom_scale = Math.max(1, Math.max(zoom_scale, fit_scale));
+            const w = Math.floor(img.width / zoom_scale);
+            const h = Math.floor(img.height / zoom_scale);
+
+            const canvas = document.createElement("canvas");
+            canvas.width = w; canvas.height = h;
+
+            const ctx = canvas.getContext("2d");
+            if (!ctx) throw new Error("Could not get 2D context");
+            ctx.scale(1 / zoom_scale, 1 / zoom_scale);
+            ctx.drawImage(img, 0, 0);
+
+            const image_data = ctx.getImageData(0, 0, w, h);
+            const palette_as_rgb = PROJECT.palette.map((hex) => {
+                // starts with #
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return {r, g, b};
+            });
+
+            // pad with 0 to right/ bottom to make it a multiple of the tile size
+            const final_w = Math.ceil(w / PROJECT.tile_size) * PROJECT.tile_size;
+            const final_h = Math.ceil(h / PROJECT.tile_size) * PROJECT.tile_size;
+            const pixels = Array.from({ length: final_h }, () => Array(final_w).fill(0));
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const index = (y * w + x) * 4;
+                    const r = image_data.data[index];
+                    const g = image_data.data[index + 1];
+                    const b = image_data.data[index + 2];
+                    const a = image_data.data[index + 3];
+                    pixels[y][x] = get_closest_palette_index(r, g, b, a, palette_as_rgb);
+                }
+            }
+            PROJECT.play_pattern.width = final_w;
+            PROJECT.play_pattern.height = final_h;
+            PROJECT.play_pattern.pixels = pixels;
+            update_play_pattern_el();
+        };
+        img.src = /** @type {string} */ (reader.result);
+    };
+    
+    reader.readAsDataURL(file);
 }
 
 // drawing

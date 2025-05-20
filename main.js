@@ -1,7 +1,7 @@
 import { PROJECT, OPTIONS, UI_STATE, DEFAULT_ANIMATION_SPEED, load_options_locally } from "./state.js";
 
 // successful actions cause new rendering
-import { ACTIONS, TOOL_SETTINGS, set_default_project_and_render, load_project, apply_rules } from "./actions.js";
+import { ACTIONS, TOOL_SETTINGS, set_default_project_and_render, load_project, apply_rules, load_play_from_image } from "./actions.js";
 import { do_action, do_tool_setting, finish_drawing, run_rules_once } from "./actions.js";
 
 // for initial rendering and the window/document events below
@@ -147,8 +147,10 @@ window.addEventListener("drop", (e) => {
     const file = e.dataTransfer.files[0];
     if (file && file.type === "application/json") {
         load_project(file);
+    } else if (file && file.type === "image/png") {
+        load_play_from_image(file, file.name);
     } else {
-        alert("Please drop a valid JSON file.");
+        alert("Please drop a valid JSON or png file.");
     }
 });
 

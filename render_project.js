@@ -1,5 +1,5 @@
 import { PROJECT, OPTIONS, UI_STATE } from "./state.js";
-import { value_to_color, selections_equal } from "./utils.js";
+import { palette_value_to_color, selections_equal } from "./utils.js";
 
 import { drop_sel_into, eyedrop, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
 
@@ -338,7 +338,7 @@ function draw_pattern_to_canvas(pattern, canvas) {
     for (let y = 0; y < pattern.height; y++) {
         for (let x = 0; x < pattern.width; x++) {
             const value = (pattern.pixels[y] !== undefined) ? pattern.pixels[y][x] : null;
-            ctx.fillStyle = value_to_color(value);
+            ctx.fillStyle = palette_value_to_color(value);
             ctx.fillRect(x * scale, y * scale, scale, scale);
         }
     }

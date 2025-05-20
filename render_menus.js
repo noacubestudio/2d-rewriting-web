@@ -1,5 +1,5 @@
 import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK, INITIAL_DEFAULT_PALETTE } from "./state.js";
-import { value_to_color } from "./utils.js";
+import { palette_value_to_color } from "./utils.js";
 
 import { ACTIONS, ACTION_BUTTON_VISIBILITY, TOOL_SETTINGS } from "./actions.js";
 import { do_tool_setting, do_action, save_options, palette_changed, set_default_project_and_render } from "./actions.js";
@@ -64,7 +64,7 @@ function populate_with_options(group_container, option_key, options) {
         if (option_key === "selected_palette_value") {
             btn.classList.add("color-button");
             if (value !== -1) {
-                btn.style.backgroundColor = value_to_color(value);
+                btn.style.backgroundColor = palette_value_to_color(value);
                 btn.style.backgroundImage = "none";
                 btn.style.color = UI_STATE.text_contrast_palette[value] || "black"; // magenta is missing bg color
             }

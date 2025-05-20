@@ -272,11 +272,12 @@ export function move_sel_to_dest(sel, dest_sel) {
         output.render_play = true;
 
         // insert the rules pattern into the play pattern
-        const first_pattern = get_selected_rule_patterns(sel)[0] || null;
-        if (!first_pattern) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
-        PROJECT.play_pattern.pixels = structuredClone(first_pattern.pixels);
-        PROJECT.play_pattern.width = first_pattern.width;
-        PROJECT.play_pattern.height = first_pattern.height;
+        const patterns = get_selected_rule_patterns(sel);
+        const last_pattern = patterns[patterns.length - 1] || null;
+        if (!last_pattern) throw new Error(`Incomplete selection: ${JSON.stringify(sel)}`);
+        PROJECT.play_pattern.pixels = structuredClone(last_pattern.pixels);
+        PROJECT.play_pattern.width = last_pattern.width;
+        PROJECT.play_pattern.height = last_pattern.height;
         return output;
     }
 

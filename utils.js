@@ -55,8 +55,43 @@ export function get_blank_pattern(w = PROJECT.tile_size, h = PROJECT.tile_size) 
  * @param {number | null} value - the value to convert to a color
  * @returns {string} - the color as a css color string
  */
-export function value_to_color(value) { 
+export function palette_value_to_color(value) { 
     if (value === -1) return "transparent"; // wildcard
     if (value === null || value >= PROJECT.palette.length) return "magenta"; // empty
     return PROJECT.palette[value];
+}
+
+/**
+ * get the closest value for a color. interpret any transparent color as -1 (wildcard)
+ * @param {number} r - red value (0-255)
+ * @param {number} g - green value (0-255)
+ * @param {number} b - blue value (0-255)
+ * @param {number} a - alpha value (0-255)
+ * @param {{ r: number, g: number, b: number }[]} rgb_palette_array - array of colors in hex format
+ * @returns {number} - the value as a number
+ */
+export function get_closest_palette_index(r, g, b, a, rgb_palette_array) {
+    if (a < 250) return -1; // count as wildcard
+    // cheap distance measure
+    const distance = (/** @type {{ r: any; g: any; b: any; }} */ c1, /** @type {{ r: any; g: any; b: any; }} */ c2) => {
+        return Math.abs(c1.r - c2.r) + Math.abs(c1.g - c2.g) + Math.abs(c1.b - c2.b);
+    }
+
+    let index = -1;
+    let min_distance = Infinity;
+    for (let i = 0; i < rgb_palette_array.length; i++) {
+        const color = rgb_palette_array[i];
+        const d = distance({ r, g, b }, color);
+        if (d < min_distance) {
+            min_distance = d;
+            index = i;
+        }
+    }
+    return index;
+}
+
+export function get_short_timestamp() {
+    const now = new Date();
+    const pad = (/** @type {number} */ n) => n.toString().padStart(2, "0");
+    return `${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}-${pad(now.getMinutes())}`;
 }
