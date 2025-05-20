@@ -72,7 +72,7 @@ export function load_options_locally() {
 /** 
  * @typedef {Object} Rule 
  * @property {string} id - unique identifier for the rule
- * @property {number} label - generated label for the rule
+ * @property {number} current_index - generated for the rule to show as a label
  * @property {boolean} [part_of_group]
  * @property {boolean} [trigger_animation_loop] - run rules again after a delay (if this one runs)
  * @property {boolean} [rotate] - whether to expand to all 4 rotations

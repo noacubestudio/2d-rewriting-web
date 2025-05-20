@@ -6,7 +6,7 @@ import { generate_id, get_blank_pattern, get_short_timestamp, selections_equal, 
 
 import { draw_in_pattern, rotate_pattern, flip_pattern, apply_rule } from "./edit-pattern.js";
 import { get_selected_rule_patterns, get_selected_rule_objects, move_sel_to_dest } from "./edit-selection.js";
-import { toggle_rule_flag, duplicate_sel, delete_sel, clear_sel, reorder_sel } from "./edit-selection.js";
+import { toggle_rule_flag, duplicate_sel, delete_sel, clear_sel, reorder_sel, add_text_above_sel } from "./edit-selection.js";
 import { resize_patterns_in_sel, rotate_patterns_in_sel, flip_patterns_in_sel, shift_patterns_in_sel } from "./edit-selection.js";
 
 import { update_action_buttons_for_selection, update_tool_button_set, update_undo_button } from "./render_menus.js";
@@ -54,6 +54,7 @@ export const ACTIONS = [
     { id: "delete"   , hint: "❌ Delete"      , keys: ["Delete"               ], action: /** @param {Selection} s */ (s) => delete_sel(s) },
     { id: "clear"    , hint: "🧼 Clear"       , keys: ["w"                    ], action: /** @param {Selection} s */ (s) => clear_sel(s) },
     { id: "duplicate", hint: "📄 Duplicate"   , keys: ["d"                    ], action: /** @param {Selection} s */ (s) => duplicate_sel(s) },
+    { id: "add_text" , hint: "📝 Add Text"    , keys: ["t"                    ], action: /** @param {Selection} s */ (s) => add_text_above_sel(s) },
 
     { id: "rule_flag", hint: "☑️ Rotations"   , keys: ["Alt", "r"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'rotate') },
     { id: "rule_flag", hint: "☑️ Mirrors"     , keys: ["Alt", "m"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'mirror') },
@@ -86,7 +87,7 @@ export const ACTIONS = [
 ];
 export const ACTION_BUTTON_VISIBILITY = {
     nothing_selected:   ['save', 'load', 'new', 'scale', 'settings', 'input'],
-    rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag'],
+    rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag', 'add_text'],
     play_selected:      ['savepng', 'loadpng'],
     something_selected: ['resize', 'rotate', 'flip', 'shift', 'clear'],
 };
@@ -385,6 +386,9 @@ function process_rules(rules, sel, input) {
         // skip if the rule is not selected
         if (selected_rule_ids && !selected_rule_ids.has(rule.id)) return;
 
+        // skip if the rule has no parts in it
+        if (rule.parts.length === 0) return;
+
         // skip if rule is key controlled but no input was given
         const missing_x_input = (input !== 'x' && rule.keybind && !rule.rotate);
         const missing_dir_input = ((!input || input === 'x') && rule.keybind && rule.rotate);
@@ -573,7 +577,7 @@ function set_default_project(play_w = 8, play_h = 8) {
                 patterns: [get_blank_pattern(), get_blank_pattern()]
             },
         ],
-        label: 0
+        current_index: -1
     }
 
     PROJECT.rules.push(default_rule);

@@ -440,6 +440,40 @@ export function clear_sel(sel) {
 
 /** 
  * @param {Selection} sel
+ * @returns {Selection_Edit_Output | undefined}
+ */
+export function add_text_above_sel(sel) {
+    if (sel.type === null || sel.type === 'play') return;
+
+    /** @type {Selection_Edit_Output} */
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
+    output.new_selected.paths = [];
+
+    const rules_set = new Set();
+    get_selected_rule_objects(sel).forEach(({rule}) => rules_set.add(rule));
+
+    [...rules_set].forEach(rule => {
+        const insert_index = PROJECT.rules.findIndex(r => r.id === rule.id); // same id => insert above
+        /** @type {Rule} */
+        const new_text_rule = {
+            id: generate_id('rule'),
+            current_index: -1,
+            parts: [],
+            comment: "",
+            show_comment: true,
+        };
+        PROJECT.rules.splice(insert_index, 0, new_text_rule);
+        output.new_selected.paths.push({ rule_id: new_text_rule.id });
+        output.render_ids.add(new_text_rule.id);
+        output.render_ids.add(rule.id); // also render original to deselect
+        output.reordered = true;
+    });
+
+    return output;
+}
+
+/** 
+ * @param {Selection} sel
  * @param {Rule_Flag_Key} flag - flag to toggle
  * @returns {Selection_Edit_Output | undefined}
  */
@@ -451,6 +485,7 @@ export function toggle_rule_flag(sel, flag) {
     const rules = get_selected_rule_objects(sel);
 
     rules.forEach(({ rule }) => {
+        if (rule.parts.length === 0) return; // is comment only
         if (flag === 'part_of_group' && PROJECT.rules.findIndex(r => r.id === rule.id) === 0) return;
         rule[flag] = !rule[flag];
         output.render_ids.add(rule.id);

@@ -165,6 +165,10 @@ button.disabled {
     outline-offset: -0.5px;
     cursor: pointer;
 }
+.rule.comment-only {
+    background: none;
+    outline: none;
+}
 .rule-parts {
     display: flex;
 }
@@ -186,6 +190,9 @@ button.disabled {
     font-size: 0.85em;
     pointer-events: none;
 }
+.rule.comment-only .rule-label-container {
+    color: #999;
+}
 .rule-comment, .rule-io-label {
     padding: 4px 8px 4px 1px;
     background-color: transparent;
@@ -199,6 +206,14 @@ button.disabled {
 .rule-comment {
     font-style: italic;
     pointer-events: auto; /* necessary to be able to edit comment */
+}
+textarea.rule-comment {
+    resize: none;
+    overflow: hidden;
+    width: 300px;
+    min-height: 20px;
+    color: #ccc;
+    font-style: normal;
 }
 .rule-part {
     background: #333;

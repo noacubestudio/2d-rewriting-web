@@ -53,7 +53,7 @@ function create_rule_el(rule) {
 
     const rule_index_label = document.createElement("label");
     rule_index_label.className = "rule-label";
-    rule_index_label.textContent = rule.label.toString() || "?";
+    rule_index_label.textContent = rule.current_index.toString() || "?";
     rule_label_div.appendChild(rule_index_label);
 
     // rule details
@@ -88,26 +88,46 @@ function create_rule_el(rule) {
 
     // comment
     if (rule.show_comment) {
-        const rule_comment = document.createElement("input");
+        const is_area = rule.parts.length === 0;
+        const rule_comment = document.createElement(is_area ? "textarea" : "input");
         rule_comment.className = "rule-comment";
         rule_comment.value = rule.comment || "";
         rule_comment.placeholder = "Add a comment...";
+        if (is_area) {
+            /** @type {HTMLTextAreaElement} */
+            (rule_comment).rows = 1;
+            rule_el.classList.add("comment-only");
+        }
         rule_comment.addEventListener("input", (e) => {
             const target = /** @type {HTMLInputElement} */ (e.target);
             rule.comment = target.value;
-            resize_input(rule_comment);
+            resize_input(rule_comment, is_area);
         });
 
-        /** @param {HTMLInputElement} input */
-        function resize_input(input) {
+        /** 
+         * @param {HTMLInputElement | HTMLTextAreaElement} el
+         * @param {boolean} is_area
+         */
+        function resize_input(el, is_area) {
+            if (is_area) {
+                // match width to fill rules container
+                const container_width = /** @type {HTMLElement} */ ( RULES_CONTAINER_EL).clientWidth - 70; // generous padding
+                el.style.width = Math.min(container_width, 600) + "px";
+                // match height to content
+                el.style.height = "";
+                el.style.height = Math.max(el.scrollHeight + 2, 20) + "px";
+                return;
+            }
+
             const ghost = document.getElementById('input-ghost');
             if (!ghost) throw new Error("No ghost input found");
-            ghost.textContent = input.value || input.placeholder || " ";
-            ghost.style.font = window.getComputedStyle(input).font;
-            input.style.width = (ghost.scrollWidth + 14) + "px"; // padding
+            ghost.textContent = el.value || el.placeholder || " ";
+            ghost.style.font = window.getComputedStyle(el).font;
+            el.style.width = (ghost.scrollWidth + 14) + "px"; // padding
         }
+
         rule_content.appendChild(rule_comment);
-        resize_input(rule_comment); // initial
+        requestAnimationFrame(() => resize_input(rule_comment, is_area)); // initial
     }
 
     // keypress label
@@ -360,7 +380,7 @@ export function update_all_rule_els() {
 
     RULES_CONTAINER_EL.innerHTML = "";
     PROJECT.rules.forEach((rule, index) => {
-        rule.label = index + 1;
+        rule.current_index = index + 1;
         const rule_el = create_rule_el(rule);
         RULES_CONTAINER_EL.appendChild(rule_el);
     });
@@ -389,7 +409,7 @@ export function update_rule_el_by_id(rule_id) {
 
     // Re-render and insert at the right position
     if (index === -1) return; // only if it exists still
-    PROJECT.rules[index].label = index + 1;
+    PROJECT.rules[index].current_index = index + 1;
     const new_el = create_rule_el(PROJECT.rules[index]);
     RULES_CONTAINER_EL.insertBefore(new_el, RULES_CONTAINER_EL.children[index]);
 
@@ -455,7 +475,7 @@ export function create_selection_listeners() {
         }
         const target = /** @type {HTMLElement} */ (e.target);
         if (!target) return;
-        if (target.tagName === "INPUT") return; // comment input does not change selection
+        if (["INPUT", "TEXTAREA"].includes(target.tagName)) return; // comment input does not change selection
     
         // select rules, parts or patterns.
         const old_sel = structuredClone(PROJECT.selected);
