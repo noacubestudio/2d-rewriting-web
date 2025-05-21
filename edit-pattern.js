@@ -231,13 +231,35 @@ function apply_matches_in_target(part_matches, target) {
         // no replace patterns
         if (part.patterns.length === 1) return;
 
+        const wildcard_values = [];
+        if (part.sync_wildcards) {
+            // get the wildcard values from the first pattern
+            const first_pattern = part.patterns[0];
+            for (let py = 0; py < first_pattern.height; py++) {
+                for (let px = 0; px < first_pattern.width; px++) {
+                    const pattern_pixel = first_pattern.pixels[py][px];
+                    if (pattern_pixel === -1) {
+                        wildcard_values.push(target.pixels[y + py][x + px]);
+                    }
+                }
+            }
+        }
+
         // random pattern except the first one, which is the before state
         const random_replace_index = 1 + Math.floor(Math.random() * (part.patterns.length - 1));
         const pattern = part.patterns[random_replace_index];
+        let wildcard_index = 0;
         for (let py = 0; py < pattern.height; py++) {
             for (let px = 0; px < pattern.width; px++) {
                 const pattern_pixel = pattern.pixels[py][px];
-                if (pattern_pixel === -1) continue; // skip empty pixels
+                if (pattern_pixel === -1) {
+                    if (part.sync_wildcards) {
+                        target.pixels[y + py][x + px] = wildcard_values[wildcard_index % wildcard_values.length];
+                        wildcard_index++;
+                        has_replaced = true;
+                    }
+                    continue;
+                }
                 target.pixels[y + py][x + px] = pattern.pixels[py][px];
                 has_replaced = true;
             }

@@ -7,7 +7,7 @@ import { rotate_pattern, resize_pattern, shift_pattern, flip_pattern } from "./e
 /** @typedef {import('./state.js').Part} Part */
 /** @typedef {import('./state.js').Pattern} Pattern */
 /** @typedef {import('./state.js').Rule_Flag_Key} Rule_Flag_Key */
-
+/** @typedef {import('./state.js').Part_Flag_Key} Part_Flag_Key */
 
 /**
  * Refresh ids when a rule is duplicated
@@ -53,6 +53,24 @@ export function get_selected_rule_objects(sel) {
         object_groups.push({ rule, part, pattern });
     });
     return object_groups;
+}
+
+/** 
+ * @param {Selection} sel 
+ * @returns {Part[]}
+ */
+export function get_selected_rule_parts(sel) {
+    const found_parts = new Set();
+    const object_groups = get_selected_rule_objects(sel);
+
+    object_groups.forEach(({ rule, part }) => {
+        if (part) {
+            found_parts.add(part);
+        } else if (rule) {
+            rule.parts.forEach(p => found_parts.add(p));
+        }
+    });
+    return [...found_parts];
 }
 
 /** 
@@ -489,6 +507,28 @@ export function toggle_rule_flag(sel, flag) {
         if (flag === 'part_of_group' && PROJECT.rules.findIndex(r => r.id === rule.id) === 0) return;
         rule[flag] = !rule[flag];
         output.render_ids.add(rule.id);
+    });
+    if (output.render_ids.size) return output;
+}
+
+/**
+ * @param {Selection} sel
+ * @param {Part_Flag_Key} flag - flag to toggle
+ * @returns {Selection_Edit_Output | undefined}
+*/
+export function toggle_part_flag(sel, flag) {
+    if (sel.type === null || sel.type === 'play') return;
+
+    /** @type {Selection_Edit_Output} */
+    const output = { new_selected: structuredClone(sel), render_play: false, render_ids: new Set() };
+    const parts = get_selected_rule_parts(sel);
+    const rules = get_selected_rule_objects(sel);
+
+    parts.forEach(part => {
+        part[flag] = !part[flag];
+    });
+    rules.forEach(({ rule }) => {
+        output.render_ids.add(rule.id); // not ideal to split it like this, but should render all the right rules anyway.
     });
     if (output.render_ids.size) return output;
 }

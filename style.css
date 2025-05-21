@@ -301,7 +301,7 @@ textarea.rule-comment {
     -webkit-user-select: none;
     touch-action: none;
 }
-.grid::after {
+.grid.show-tiles::after {
     /* Helps show the tile borders for multi-tile grids */
     content: "";
     position: absolute;

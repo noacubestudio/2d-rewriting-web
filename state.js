@@ -67,6 +67,7 @@ export function load_options_locally() {
  * @typedef {Object} Part
  * @property {string} id - unique identifier for the part
  * @property {Pattern[]} patterns - array of patterns that are part of this part
+ * @property {boolean} [sync_wildcards] - whether to fill in wildcards when replacing based on their corresponding index in the initial pattern
 */
 
 /** 
@@ -84,8 +85,13 @@ export function load_options_locally() {
 */
 
 /**
- * Boolean flags in rule objects. These can be toggled.
+ * Boolean flags that can be toggled per rule.
  * @typedef {"part_of_group" | "rotate" | "show_comment" | "keybind" | "mirror" | "trigger_animation_loop"} Rule_Flag_Key
+*/
+
+/**
+ * Boolean flags that can be toggled per part.
+ * @typedef {"sync_wildcards"} Part_Flag_Key
 */
 
 /**

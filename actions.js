@@ -6,7 +6,7 @@ import { generate_id, get_blank_pattern, get_short_timestamp, selections_equal, 
 
 import { draw_in_pattern, rotate_pattern, flip_pattern, apply_rule } from "./edit-pattern.js";
 import { get_selected_rule_patterns, get_selected_rule_objects, move_sel_to_dest } from "./edit-selection.js";
-import { toggle_rule_flag, duplicate_sel, delete_sel, clear_sel, reorder_sel, add_text_above_sel } from "./edit-selection.js";
+import { toggle_rule_flag, toggle_part_flag, duplicate_sel, delete_sel, clear_sel, reorder_sel, add_text_above_sel } from "./edit-selection.js";
 import { resize_patterns_in_sel, rotate_patterns_in_sel, flip_patterns_in_sel, shift_patterns_in_sel } from "./edit-selection.js";
 
 import { update_action_buttons_for_selection, update_tool_button_set, update_undo_button } from "./render_menus.js";
@@ -62,6 +62,7 @@ export const ACTIONS = [
     { id: "rule_flag", hint: "☑️ Comment"     , keys: ["Alt", "c"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'show_comment') },
     { id: "rule_flag", hint: "☑️ Keybind"     , keys: ["Alt", "k"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'keybind') },
     { id: "rule_flag", hint: "☑️ Animation"   , keys: ["Alt", "a"             ], action: /** @param {Selection} s */ (s) => toggle_rule_flag(s, 'trigger_animation_loop') },
+    { id: "part_flag", hint: "☑️ Link 'Any'"  , keys: ["Alt", "w"             ], action: /** @param {Selection} s */ (s) => toggle_part_flag(s, 'sync_wildcards') },
 
     { id: "input"    , hint: "⬅️ Left"        , keys: ["ArrowLeft"            ], action: () => apply_rules(null, "left") },
     { id: "input"    , hint: "➡️ Right"       , keys: ["ArrowRight"           ], action: () => apply_rules(null, "right") },
@@ -87,7 +88,7 @@ export const ACTIONS = [
 ];
 export const ACTION_BUTTON_VISIBILITY = {
     nothing_selected:   ['save', 'load', 'new', 'scale', 'settings', 'input'],
-    rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag', 'add_text'],
+    rules_selected:     ['run', 'delete', 'duplicate', 'swap', 'rule_flag', 'part_flag', 'add_text'],
     play_selected:      ['savepng', 'loadpng'],
     something_selected: ['resize', 'rotate', 'flip', 'shift', 'clear'],
 };

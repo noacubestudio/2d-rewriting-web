@@ -173,7 +173,8 @@ function create_rule_el(rule) {
 
             if (pat_index === 0) {
                 const arrowEl = document.createElement("label");
-                arrowEl.textContent = part.patterns.length > 1 ? '→' : '?';
+                const between_text = part.sync_wildcards ? "🔗" : "→";
+                arrowEl.textContent = part.patterns.length > 1 ? between_text : '?';
                 arrowEl.style.fontSize = part.patterns.length > 1 ? "1.3em" : "1em";
                 part_el.appendChild(arrowEl);
             }
@@ -273,6 +274,7 @@ function create_rule_el(rule) {
 function create_pattern_editor_el(pattern, canvas) {
     const grid = document.createElement("div");
     grid.className = "grid";
+    if (PROJECT.tile_size > 1) grid.classList.add("show-tiles");
     grid.style.gridTemplateColumns = `repeat(${pattern.width}, 1fr)`;
     grid.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
     grid.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
