@@ -158,27 +158,36 @@ export function flip_pattern(pattern, horizontal = true) {
  * @param {Pattern} target_pattern - the pattern to apply the rule to
  * @param {Rule} rule - the rule to apply
  * @param {number} step_size - the step size for searching the pattern in the target
- * @return {boolean} - true if the rule was applied, false otherwise
+ * @param {{x: number, y: number}} start_pos - the starting position for the search
+ * @return {{x: number, y: number} | null} - return the first changed position in reading order or null
  */
-export function apply_rule(target_pattern, rule, step_size) {
-    // find a match for the initial pattern of every part in the play_pattern
+export function apply_rule(target_pattern, rule, step_size, start_pos = {x: 0, y: 0}) {
+    // each part of the rule has the search pattern as [0]. find it in the target pattern.
+    // if any part is not found, stop searching and return null.
+
+    // return the first changed position in reading order (top-left to bottom-right)
+    // so that further rules can skip some of the search space.
+    let min_changed = { x: Infinity, y: Infinity };
 
     /** @type {{ part: Part, x: number, y: number }[]} */
     const part_matches = [];
-    rule.parts.forEach((part) => {
+    
+    for (const part of rule.parts) {
         const part_pattern = part.patterns[0];
-        const { x, y } = find_pattern_in_target(part_pattern, target_pattern, step_size);
-        if (x === -1 || y === -1) return; // no match found
+        start_pos.x = Math.max(0, start_pos.x - part_pattern.width + step_size);
+        start_pos.y = Math.max(0, start_pos.y - part_pattern.height + step_size);
+        const { x, y } = find_pattern_in_target(part_pattern, target_pattern, step_size, start_pos);
+        if (x === -1 || y === -1) return null; // if any part is not found, return false
         part_matches.push({ part, x, y });
-    });
-
-    if (part_matches.length < rule.parts.length) {
-        return false;
+        if (y < min_changed.y || (y === min_changed.y && x < min_changed.x)) {
+            min_changed.x = x;
+            min_changed.y = y;
+        }
     }
 
     // apply the rule to the play_pattern
     const has_replaced = apply_matches_in_target(part_matches, target_pattern);
-    return has_replaced; // a useless rule does not need to be checked over and over again.
+    return has_replaced ? min_changed : null; // a useless rule does not need to be checked over and over again.
 }
 
 /**
@@ -186,15 +195,18 @@ export function apply_rule(target_pattern, rule, step_size) {
  * @param {Pattern} pattern
  * @param {Pattern} target
  * @param {number} step_size
+ * @param {{x: number, y: number}} start_pos - the starting position for the search
  * @return {{ x: number, y: number }} - -1 if not found
  */
-function find_pattern_in_target(pattern, target, step_size) {
-    for (let y = 0; y <= target.height - pattern.height; y += step_size) {
-        for (let x = 0; x <= target.width - pattern.width; x += step_size) {
+function find_pattern_in_target(pattern, target, step_size, start_pos) {
+    let x_start = start_pos.x;
+    for (let y = start_pos.y; y <= target.height - pattern.height; y += step_size) {
+        for (let x = x_start; x <= target.width - pattern.width; x += step_size) {
             if (is_pattern_match(pattern, target, x, y)) {
                 return { x, y };
             }
         }
+        x_start = 0;
     }
     return { x: -1, y: -1 }; // no match found
 }

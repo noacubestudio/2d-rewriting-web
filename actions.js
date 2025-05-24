@@ -260,12 +260,13 @@ function undo_action() {
  * @return {true | undefined} - true if an animation was triggered
  */
 export function run_rules_once(action, id) {
-
+    const timestamp = performance.now();
     const stats = action(PROJECT.selected); // actually run.
     if (!stats) {
         console.warn(`Action '${id}' probably failed, could not get stats.`);
         return;
     }
+    const rules_took = performance.now() - timestamp;
 
     // log stats
     const { 
@@ -279,7 +280,7 @@ export function run_rules_once(action, id) {
     }
 
     if (id !== 'run_again') console.log(`Ran rules. (Mode: ${id}, ${groups_application_count} / ${groups_application_count + groups_failed_count} groups, ${stats.rules_count} rule(s))`);
-    console.log(`${application_count} / ${application_count + failed_count} matched.`);
+    console.log(`${application_count} / ${application_count + failed_count} matched in ${rules_took.toFixed(2)}ms.`);
 
     // done
     if (stats.application_count > 0) {
@@ -322,23 +323,36 @@ export function apply_rules(sel, input) {
         return; // no rules to apply
     }
 
+    // for each group of rules, loop through the rules and apply them.
+    // the id is the rule id that expanded into a group of rules. (the first one)
     ruleset.forEach(({ id, rules }) => {
-        // the id is the rule id that expanded into a group of rules.
-        // loop each group of rules before going to the next group.
-
         let rule_index = 0;
+        let max_index_reached = 0;
         let group_application_count = 0;
         let group_failed_count = 0;
+        let search_from = { x: 0, y: 0 };
+
+        // after a rule applies, go back to the start of the group.
+        // if a rule fails, try the next one in the group.
+        // rules that apply return the first changed tile position, so that further rules start searching from there.
+        // whenever a new rule index is reached, reset the search position to the start of the play pattern.
+        // this is because their patterns could still be anywhere.
+
         while (group_application_count < group_loop_limit && rule_index < rules.length) {
             const rule = rules[rule_index];
-            let rule_success = apply_rule(PROJECT.play_pattern, rule, step_size);
-            if (rule_success) {
+            const first_change = apply_rule(PROJECT.play_pattern, rule, step_size, search_from);
+            if (first_change) {
+                search_from = { x: first_change.x, y: first_change.y };
                 group_application_count++;
                 rule_index = 0; // reset to start of group
                 if (rule.trigger_animation_loop) stats.triggered_animation = true;
             } else {
                 group_failed_count++;
                 rule_index++; // try the next rule in the group
+                if (rule_index >= max_index_reached) {
+                    max_index_reached = rule_index; // keep track of the highest index reached
+                    search_from = { x: 0, y: 0 };
+                }
             }
         }
         // add to the total number of applications and misses.
