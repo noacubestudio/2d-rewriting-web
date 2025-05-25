@@ -155,6 +155,10 @@ function create_rule_el(rule) {
             pattern_el.dataset.id = pattern.id;
             add_pointer_events_for_hover(pattern_el, part_el, rule_el);
 
+            pattern_el.addEventListener("dragstart", (e) => {
+                e.dataTransfer?.setData("text/plain", ''); // neeeded on webkit to allow dragging pattern
+            });
+
             const canvas = document.createElement("canvas");
             canvas.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
             canvas.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
@@ -180,9 +184,13 @@ function create_rule_el(rule) {
             }
         });
 
+        part_el.addEventListener("dragstart", (e) => {
+            e.dataTransfer?.setData("text/plain", ''); // neeeded on webkit to allow dragging part
+        });
+
         part_el.addEventListener("dragover", (e) => {
-            e.preventDefault(); // allow drop
             if (PROJECT.selected.type === 'part') return; // can drag patterns/play between parts
+            e.preventDefault(); // allow drop
             part_el.classList.add("drop-target");
         });
         part_el.addEventListener("dragleave", () => {
@@ -202,8 +210,8 @@ function create_rule_el(rule) {
     });
 
     rule_el.addEventListener("dragover", (e) => {
-        e.preventDefault(); // allow drop
         if (PROJECT.selected.type !== 'part') return; // can drag parts between rules
+        e.preventDefault(); // allow drop
         rule_el.classList.add("drop-target");
     });
     rule_el.addEventListener("dragleave", () => {
@@ -586,9 +594,13 @@ export function create_play_pattern_listeners() {
     const main_el = SCREEN_CONTAINER_EL.querySelector("#screen-container .screen-wrap");
     if (!main_el) throw new Error("No screen wrap element found");
 
+    main_el.addEventListener("dragstart", (e) => {
+        e.dataTransfer?.setData("text/plain", ''); // neeeded on webkit
+    });
+
     main_el.addEventListener("dragover", (e) => {
-        e.preventDefault(); // allow drop
         if (PROJECT.selected.type !== 'pattern') return; // can drag patterns onto play pattern
+        e.preventDefault(); // allow drop
         main_el.classList.add("drop-target");
     });
     main_el.addEventListener("dragleave", () => {
