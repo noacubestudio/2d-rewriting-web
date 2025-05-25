@@ -813,8 +813,6 @@ export function start_drawing(pattern, x, y) {
     // set at start of drawing
     UI_STATE.draw_start_x = x;
     UI_STATE.draw_start_y = y;
-    UI_STATE.draw_x = x;
-    UI_STATE.draw_y = y;
 
     // if multiselect, draw in all selected patterns
     if (PROJECT.selected.type === 'pattern' && PROJECT.selected.paths.length > 1) {
@@ -846,8 +844,6 @@ export function continue_drawing(x, y) {
             UI_STATE.draw_patterns[i].pixels = structuredClone(UI_STATE.draw_pixels_cloned[i]);
         }
     }
-    UI_STATE.draw_x = x;
-    UI_STATE.draw_y = y;
 
     UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, current_tool, UI_STATE));
     return UI_STATE.draw_patterns; // render these
@@ -859,8 +855,8 @@ export function finish_drawing() {
     UI_STATE.is_drawing = false;
     UI_STATE.draw_start_x = null;
     UI_STATE.draw_start_y = null;
-    UI_STATE.draw_x = null;
-    UI_STATE.draw_y = null;
+    UI_STATE.current_x = null;
+    UI_STATE.current_y = null;
     if (UI_STATE.draw_patterns.length === 1 && 
         UI_STATE.draw_patterns[0].id === 'play' &&
         OPTIONS.run_after_change) {

@@ -267,6 +267,90 @@ function create_rule_el(rule) {
 }
 
 /**
+ * @param {HTMLCanvasElement} el 
+ * @param {PointerEvent} event 
+ * @param {boolean} keep_in_bounds - if true, clamp the position to the canvas bounds
+ * @returns {{ x: number, y: number } | null} - the pixel position in the canvas, or null if out of bounds
+ */
+function get_pixel_position(el, event, keep_in_bounds) {
+    const rect = el.getBoundingClientRect();
+    const x = Math.floor((event.clientX - rect.left) / OPTIONS.pixel_scale);
+    const y = Math.floor((event.clientY - rect.top) / OPTIONS.pixel_scale);
+    const clamped_x = Math.max(0, Math.min(x, el.width / OPTIONS.pixel_scale - 1)); // clamp to width
+    const clamped_y = Math.max(0, Math.min(y, el.height / OPTIONS.pixel_scale - 1)); // clamp to height
+    if (!keep_in_bounds && (x !== clamped_x || y !== clamped_y)) return null;
+    return { x: clamped_x, y: clamped_y };
+}
+
+/**
+ * @param {number} x
+ * @param {number} y
+ */
+function highlight_pixel_in_grid_els(x, y) {
+    const grid_els = /** @type {NodeListOf<HTMLDivElement>} */ (document.querySelectorAll(".grid"));
+
+    for (const el of grid_els) {
+        const highlight_el = /** @type {HTMLDivElement | null} */ (el.querySelector(".pixel-highlight"));
+        if (highlight_el) {
+            highlight_el.style.left = `${x * OPTIONS.pixel_scale}px`;
+            highlight_el.style.top = `${y * OPTIONS.pixel_scale}px`;
+        } else {
+            const new_highlight_el = document.createElement("div");
+            new_highlight_el.className = "pixel-highlight";
+            new_highlight_el.style.left = `${x * OPTIONS.pixel_scale}px`;
+            new_highlight_el.style.top = `${y * OPTIONS.pixel_scale}px`;
+            el.appendChild(new_highlight_el);
+        }
+    }
+}
+
+/**
+ * Handle this globally since moving outside the pattern should not stop e.g. the line tool from working.
+ * @param {PointerEvent} e
+ */
+function handle_pointermove_for_patterns(e) {
+    // read xy and highlight pixel in grid
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el) return; // no element under pointer
+    const pattern = /** @type {HTMLElement} */ (el.closest(".rule-pattern.selected"));
+    const play_pattern = /** @type {HTMLElement} */ (el.closest(".screen-wrap.selected"));
+    const canvas = (pattern || play_pattern)?.querySelector("canvas") || UI_STATE.current_pointer_canvas_el;
+    if (!canvas) return;
+
+    const pos = get_pixel_position(canvas, e, UI_STATE.is_drawing);
+    if (!pos) {
+        // out of bounds, so remove all highlight els
+        const highlight_els = document.querySelectorAll(".pixel-highlight");
+        highlight_els.forEach(el => el.remove());
+        return;
+    } 
+    const { x, y } = pos;
+    
+    if (x === UI_STATE.current_x && y === UI_STATE.current_y) return; // no change
+    UI_STATE.current_x = x;
+    UI_STATE.current_y = y;
+    highlight_pixel_in_grid_els(x, y);
+    
+    if (!UI_STATE.is_drawing || !UI_STATE.draw_pattern_active) return; // not drawing
+    const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+
+    if (current_tool === 'eyedropper') {
+        const changed = eyedrop(UI_STATE.draw_pattern_active, x, y);
+        if (!changed) return;
+        select_tool_button('selected_palette_value', OPTIONS.selected_palette_value);
+        return;
+    }
+
+    // draw and render
+    const changed_patterns = continue_drawing(x, y);
+    if (PROJECT.selected.type === 'play') { 
+        draw_pattern_to_canvas(UI_STATE.draw_pattern_active, canvas); 
+        return;
+    }
+    draw_patterns_to_canvases(changed_patterns);
+}
+
+/**
  * @param {Pattern} pattern - the pattern to create the editor for
  * @param {HTMLCanvasElement} canvas - the canvas to draw on
  * @returns {HTMLDivElement} - the grid element
@@ -275,74 +359,35 @@ function create_pattern_editor_el(pattern, canvas) {
     const grid = document.createElement("div");
     grid.className = "grid";
     if (PROJECT.tile_size > 1) grid.classList.add("show-tiles");
-    grid.style.gridTemplateColumns = `repeat(${pattern.width}, 1fr)`;
     grid.style.width = `${pattern.width * OPTIONS.pixel_scale}px`;
     grid.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
-
-    // pixels
-    for (let y = 0; y < pattern.height; y++) {
-        for (let x = 0; x < pattern.width; x++) {
-            const cell = document.createElement("div");
-            cell.className = "pixel";
-            // add data-x and data-y attributes
-            cell.dataset.x = x.toString();
-            cell.dataset.y = y.toString();
-            grid.appendChild(cell);
-        }
-    }
 
     grid.addEventListener("pointerdown", (e) => {
         const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
         if (current_tool === 'select') return; // not a drawing tool.
         e.preventDefault();
 
-        const cell = /** @type {HTMLElement | null} */ (e.target);
-        if (cell && cell.classList.contains("pixel")) {
-            if (!cell.dataset.x || !cell.dataset.y) return;
-            const x = +cell.dataset.x;
-            const y = +cell.dataset.y;
+        UI_STATE.is_drawing = true;
+        UI_STATE.draw_pattern_active = pattern;
+        UI_STATE.current_pointer_canvas_el = canvas; // store the canvas for pointermove even when not on the canvas
 
-            UI_STATE.is_drawing = true;
+        const { x, y } = /** @type {{x: Number, y: Number}} */ (get_pixel_position(canvas, e, true));
+        UI_STATE.current_x = x;
+        UI_STATE.current_y = y;
+        highlight_pixel_in_grid_els(x, y);
 
-            if (current_tool === 'eyedropper') {
-                eyedrop(pattern, x, y);
-                select_tool_button('selected_palette_value', OPTIONS.selected_palette_value);
-                return;
-            }
-
-            // setup, draw, render. could be multiple patterns at once.
-            const changed_patterns = start_drawing(pattern, x, y);
-            if (pattern.id === PROJECT.play_pattern.id) { draw_pattern_to_canvas(pattern, canvas); return; }
-            draw_patterns_to_canvases(changed_patterns);
+        if (current_tool === 'eyedropper') {
+            eyedrop(pattern, x, y);
+            select_tool_button('selected_palette_value', OPTIONS.selected_palette_value);
+            return;
         }
+
+        // setup, draw, render. could be multiple patterns at once.
+        const changed_patterns = start_drawing(pattern, x, y);
+        if (pattern.id === PROJECT.play_pattern.id) { draw_pattern_to_canvas(pattern, canvas); return; }
+        draw_patterns_to_canvases(changed_patterns);
     });
 
-    grid.addEventListener("pointermove", (e) => {
-        const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
-        if (!UI_STATE.is_drawing) return;
-
-        const cell = /** @type {HTMLElement | null} */ (document.elementFromPoint(e.clientX, e.clientY));
-        if (cell && cell.classList.contains("pixel")) {
-            if (!cell.dataset.x || !cell.dataset.y) return;
-            const x = +cell.dataset.x;
-            const y = +cell.dataset.y;
-
-            if (current_tool === 'eyedropper') {
-                const changed = eyedrop(pattern, x, y);
-                if (!changed) return;
-                select_tool_button('selected_palette_value', OPTIONS.selected_palette_value);
-                return;
-            }
-
-            if (x === UI_STATE.draw_x && y === UI_STATE.draw_y) return; // no change
-            // draw and render
-            const changed_patterns = continue_drawing(x, y);
-            if (pattern.id === PROJECT.play_pattern.id) { draw_pattern_to_canvas(pattern, canvas); return; }
-            draw_patterns_to_canvases(changed_patterns);
-        }
-    });
-
-    // pointerup with UI_STATE.is_drawing is not specific to the grid and not handled here.
     return grid;
 }
 
@@ -470,7 +515,17 @@ export function update_selected_els(old_sel, new_sel) {
 }
 
 export function create_selection_listeners() {
-    if (RULES_CONTAINER_EL) RULES_CONTAINER_EL.addEventListener("pointerup", (e) => {
+    window.addEventListener("pointermove", (e) => {
+        handle_pointermove_for_patterns(e);
+    });
+
+    const project_container = document.getElementById("project-container");
+    if (!project_container) throw new Error("No project container found");
+
+    // select/ deselect patterns, parts and rules.
+    // finish drawing.
+    // highlight pixel in grid.
+    project_container.addEventListener("pointerup", (e) => {
         if (UI_STATE.is_drawing) {
             finish_drawing();
             return;
@@ -478,13 +533,14 @@ export function create_selection_listeners() {
         const target = /** @type {HTMLElement} */ (e.target);
         if (!target) return;
         if (["INPUT", "TEXTAREA"].includes(target.tagName)) return; // comment input does not change selection
-    
+
         // select rules, parts or patterns.
         const old_sel = structuredClone(PROJECT.selected);
         const new_sel = get_new_sel(target);
-        
+        const is_pattern_ish = new_sel.type === 'pattern' || new_sel.type === 'play';
+
         const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
-        if (current_tool === 'select') {
+        if (new_sel.type !== 'play' && current_tool === 'select') {
             if (PROJECT.selected.type !== new_sel.type) {
                 // if the type is different, restart selection
                 PROJECT.selected = new_sel;
@@ -493,36 +549,37 @@ export function create_selection_listeners() {
                 PROJECT.selected = toggle_in_selection(PROJECT.selected, new_sel);
             }
         } else {
+            // basic toggle
             const same = selections_equal(old_sel, new_sel);
-            const should_toggle = same && new_sel.type !== 'pattern'; // click again on rule or part to deselect
+            const should_toggle = same && !is_pattern_ish;
             PROJECT.selected = should_toggle ? { type: null, paths: [] } : new_sel;
-            if (same && !should_toggle) return;
+            if (same && !should_toggle) return; // no change
         }
         update_selected_els(old_sel, new_sel);
         update_action_buttons_for_selection();
-    });
-    if (SCREEN_CONTAINER_EL) SCREEN_CONTAINER_EL.addEventListener("pointerup", (e) => {
-        if (UI_STATE.is_drawing) {
-            finish_drawing();
-            return;
-        }
-        const target = /** @type {HTMLElement} */ (e.target);
-    
-        // select or deselect play pattern.
-        const old_sel = structuredClone(PROJECT.selected);
-        /** @type {Selection} */
-        const new_sel = { 
-            type: (target.closest(".screen-wrap") ? 'play' : null), 
-            paths: [] 
-        }; 
-        const same = selections_equal(old_sel, new_sel);
-    
-        if (same) return;
-        PROJECT.selected = new_sel;
-        update_selected_els(old_sel, new_sel);
-        update_action_buttons_for_selection();
+
+        // highlight pixel in grid
+
+        /** @type {HTMLCanvasElement | null | undefined} */
+        const canvas = (() => {
+            if (new_sel.type === 'play') {
+                return SCREEN_CONTAINER_EL?.querySelector(".screen-wrap canvas");
+            } else if (new_sel.type === 'pattern') {
+                const target_pattern_id = new_sel.paths[0].pattern_id;
+                return RULES_CONTAINER_EL?.querySelector(`.rule-pattern[data-id="${target_pattern_id}"] canvas`);
+            }
+            return; // no canvas to highlight
+        })();
+        if (!canvas) return;
+        UI_STATE.current_pointer_canvas_el = canvas; // store for pointermove
+
+        const { x, y } = /** @type {{x: Number, y: Number}} */ (get_pixel_position(canvas, e, true));
+        UI_STATE.current_x = x;
+        UI_STATE.current_y = y;
+        highlight_pixel_in_grid_els(x, y);
     });
 }
+
 export function create_play_pattern_listeners() {
     if (!SCREEN_CONTAINER_EL) throw new Error("No screen container found");
     /** @type {HTMLDivElement | null} */
@@ -561,6 +618,9 @@ function get_new_sel(el) {
     const rule    = /** @type {HTMLElement} */ (el.closest(".rule"));
     const part    = /** @type {HTMLElement} */ (el.closest(".rule-part"));
     const pattern = /** @type {HTMLElement} */ (el.closest(".rule-pattern"));
+    const play_pattern = /** @type {HTMLElement} */ (el.closest(".screen-wrap"));
+
+    if (play_pattern) return { type: 'play', paths: [] }; // play pattern selected
 
     if (!rule || !rule.dataset.id) return { type: null, paths: [] }; // no rule selected
 

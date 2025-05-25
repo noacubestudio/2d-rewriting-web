@@ -159,8 +159,12 @@ export function clear_undo_stack() {
  * @property {number} draw_value - the value of the pixel being drawn
  * @property {number | null} draw_start_x - the x coordinate of the first pixel in the brushstroke
  * @property {number | null} draw_start_y - the y coordinate of the first pixel in the brushstroke
- * @property {number | null} draw_x - the x coordinate of the last pixel in the brushstroke
- * @property {number | null} draw_y - the y coordinate of the last pixel in the brushstroke
+ * @property {number | null} current_x - the x coordinate of the current position of the pointer
+ * @property {number | null} current_y - the y coordinate of the current position of the pointer
+ * 
+ * @property {Pattern | null} draw_pattern_active - the pattern that is currently being drawn on
+ * @property {HTMLCanvasElement | null} current_pointer_canvas_el - the div element that is being drawn on
+ * 
  * @property {Pattern[]} draw_patterns - patterns that are being drawn to, chosen at the start of drawing
  * @property {number[][][]} draw_pixels_cloned - their pixels before drawing
  * 
@@ -174,9 +178,11 @@ export const UI_STATE = {
     draw_value: 1,
     draw_start_x: null,
     draw_start_y: null,
-    draw_x: null,
-    draw_y: null,
+    current_x: null,
+    current_y: null,
     draw_patterns: [],     
+    draw_pattern_active: null, // pattern the pointer is drawing on
+    current_pointer_canvas_el: null, // the element that is being drawn on
     draw_pixels_cloned: [],
 
     next_timestamp: null,

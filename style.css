@@ -53,7 +53,7 @@ body {
     flex-direction: column;
     height: calc(var(--vh-100, 100vh));
 }
-#main-h {
+#project-container {
     flex-grow: 1;
     display: flex;
     flex-direction: row;
@@ -293,13 +293,17 @@ textarea.rule-comment {
     -webkit-user-select: none;
 }
 .grid {
-    display: grid;
     position: absolute;
     top: 0; left: 0;
     z-index: 10;
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    background-image:
+        linear-gradient(to right,  #99999955 0.5px, transparent 1px),
+        linear-gradient(to bottom, #99999955 0.5px, transparent 1px);
+    background-size: calc(var(--pixel-scale) * 1px) 
+                     calc(var(--pixel-scale) * 1px);
 }
 .grid.show-tiles::after {
     /* Helps show the tile borders for multi-tile grids */
@@ -315,13 +319,10 @@ textarea.rule-comment {
     background-size: calc(var(--tile-size) * var(--pixel-scale) * 1px) 
                      calc(var(--tile-size) * var(--pixel-scale) * 1px);
 }
-.pixel {
+.pixel-highlight {
+    position: absolute;
     width: calc(var(--pixel-scale) * 1px);
     height: calc(var(--pixel-scale) * 1px);
-    border: 0.5px solid #99999955;
-    background: transparent;
-}
-.pixel:hover {
     outline: 1px solid #fa0;
     outline-offset: -0.5px;
     z-index: 20;
