@@ -44,7 +44,9 @@ requestAnimationFrame(animation_loop); // start the loop
 const KEYS_DOWN = new Set();
 const KEY_TIMESTAMPS = new Map(); // key -> timestamp
 const TRIGGERED_SHORTCUTS = new Set();
-const TEMP_TOOL_SETTINGS = new Set(); // if any active
+
+/** @type { {value: string, group: any, option_key: any} | null } */
+let TEMP_TOOL_SETTING = null;
 
 document.addEventListener("keydown", (e) => {
     const target = /** @type {HTMLElement} */ (e.target);
@@ -72,6 +74,17 @@ document.addEventListener("keydown", (e) => {
         if (match && !TRIGGERED_SHORTCUTS.has(binding.id)) {
             TRIGGERED_SHORTCUTS.add(binding.id);
             e.preventDefault();
+
+            // remove temp setting if it was set before
+            if (TEMP_TOOL_SETTING) {
+                // reset temp
+                console.log(`Reset due to new key: ${e.key}`);
+                const result = do_tool_setting(undefined, undefined, TEMP_TOOL_SETTING.group.temp_option_key);
+                if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+                select_tool_button(TEMP_TOOL_SETTING.option_key, OPTIONS[/** @type {keyof Options} */ (TEMP_TOOL_SETTING.option_key)]);
+                TEMP_TOOL_SETTING = null;
+            }
+
             do_action(binding.action, binding.id);
             break;
         }   
@@ -89,9 +102,19 @@ document.addEventListener("keydown", (e) => {
                 TRIGGERED_SHORTCUTS.add(binding.value);
                 e.preventDefault();
 
+                // remove temp setting if it was set before
+                if (TEMP_TOOL_SETTING) {
+                    // reset temp
+                    console.log(`Reset due to new key: ${e.key}`);
+                    const result = do_tool_setting(undefined, undefined, TEMP_TOOL_SETTING.group.temp_option_key);
+                    if (result?.render_selected) update_selected_els(PROJECT.selected, null);
+                    select_tool_button(TEMP_TOOL_SETTING.option_key, OPTIONS[/** @type {keyof Options} */ (TEMP_TOOL_SETTING.option_key)]);
+                    TEMP_TOOL_SETTING = null;
+                }
+
                 // set (temp or not)
                 const result = do_tool_setting(binding.value, group_key, group.temp_option_key);
-                if (group.temp_option_key) TEMP_TOOL_SETTINGS.add({ value: binding.value, group, option_key: group_key });
+                if (group.temp_option_key) TEMP_TOOL_SETTING = { value: binding.value, group, option_key: group_key };
 
                 // render
                 if (result?.render_selected) update_selected_els(PROJECT.selected, null);
@@ -107,7 +130,8 @@ document.addEventListener("keyup", (e) => {
     const temp_only = (KEY_TIMESTAMPS.size === 1 && duration > 200);
 
     // temp settings now need to be fully applied or reset
-    for (const { value, group, option_key } of TEMP_TOOL_SETTINGS) {
+    if (TEMP_TOOL_SETTING) {
+        const { value, group, option_key } = TEMP_TOOL_SETTING;
         // reset temp
         const result = do_tool_setting(undefined, undefined, group.temp_option_key);
         if (result?.render_selected) update_selected_els(PROJECT.selected, null);
@@ -120,12 +144,12 @@ document.addEventListener("keyup", (e) => {
 
         // for settings that can be temporary but were finally set
         select_tool_button(option_key, OPTIONS[/** @type {keyof Options} */ (option_key)]);
+        TEMP_TOOL_SETTING = null; // reset temp setting
     }
 
     KEYS_DOWN.delete(e.key);
     KEY_TIMESTAMPS.delete(e.key);
     TRIGGERED_SHORTCUTS.clear(); // reset on first key up
-    TEMP_TOOL_SETTINGS.clear(); // reset on first key up
 });
 
 // stop gestures when leaving

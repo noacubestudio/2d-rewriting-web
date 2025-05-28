@@ -1,4 +1,4 @@
-import { PROJECT, OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
+import { PROJECT, OPTIONS, TEMP_OPTIONS, UI_STATE, UNDO_STACK } from "./state.js";
 import { UNDO_STACK_LIMIT_PLAY, UNDO_STACK_LIMIT_RULES, RULE_APPLICATION_LIMIT, DEFAULT_ANIMATION_SPEED } from "./state.js";
 import { clear_undo_stack, clear_project_obj } from "./state.js";
 
@@ -119,7 +119,7 @@ export const TOOL_SETTINGS = {
         { value: 'rect'      , label: "🔳", keys: ["t"] },
         { value: 'fill'      , label: "🪣", keys: ["f"] },
         { value: 'eyedropper', label: "🔍", keys: ["i"] },
-        { value: 'select'    , label: "✅", keys: ["s"] },
+        { value: 'select'    , label: "✅", keys: ["Shift"] },
     ]},
     run_after_change:       { label: "Run after change", options: [ 
         { value: false, label: "Off", keys: null },
@@ -826,7 +826,7 @@ export function start_drawing(pattern, x, y) {
     UI_STATE.draw_pixels_cloned = UI_STATE.draw_patterns.map((p) => structuredClone(p.pixels));
 
     // draw
-    const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+    const current_tool = TEMP_OPTIONS.selected_tool || OPTIONS.selected_tool;
     pick_draw_value(pattern.pixels[y][x], current_tool); // based on previous value
     UI_STATE.draw_patterns.forEach((p) => draw_in_pattern(p, x, y, current_tool, UI_STATE));
     return UI_STATE.draw_patterns; // render these
@@ -837,7 +837,7 @@ export function start_drawing(pattern, x, y) {
  * @param {number} y - the next y coordinate to draw at
  */
 export function continue_drawing(x, y) {
-    const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+    const current_tool = TEMP_OPTIONS.selected_tool || OPTIONS.selected_tool;
     if (current_tool !== 'brush') {
         // reset the pixels to the state at the start of drawing
         for (let i = 0; i < UI_STATE.draw_patterns.length; i++) {

@@ -11,11 +11,14 @@ export const DEFAULT_ANIMATION_SPEED = 100; // milliseconds
  * @property {string[]} default_palette - hexadecimal colors, 6 digits
  * @property {number} selected_palette_value - used to index the project palette
  * @property {Tool} selected_tool
- * @property {Tool | null} temp_selected_tool - used to temporarily change the tool
  * @property {boolean} run_after_change - whether to run rules after changing the play pattern
  * @property {number} pixel_scale - scale of the pixels in the editor
  * @property {number} default_tile_size - default size of the tile in pixels
  * @property {number} animation_speed - speed of the animation in milliseconds
+*/
+
+/** @typedef {Object} Temp_Options
+ * @property {Tool | null} selected_tool
 */
 
 /** @type {Options} */
@@ -23,11 +26,15 @@ export const OPTIONS = {
     default_palette: structuredClone(INITIAL_DEFAULT_PALETTE),
     selected_palette_value: 1,
     selected_tool: 'brush',
-    temp_selected_tool: null,
     run_after_change: false,
     pixel_scale: 14,
     default_tile_size: 5,
     animation_speed: DEFAULT_ANIMATION_SPEED,
+}
+
+/** @type {Temp_Options} */
+export const TEMP_OPTIONS = {
+    selected_tool: null
 }
 
 // load options from localstorage if possible

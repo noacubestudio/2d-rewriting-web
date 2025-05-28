@@ -198,6 +198,8 @@ export function create_dialog_listeners() {
     
             // reset the project
             set_default_project_and_render();
+            OPTIONS.selected_palette_value = 1; // color 1 is at index 0
+            update_tool_button_set('selected_palette_value', OPTIONS.selected_palette_value);
             update_action_buttons_for_selection(); // nothing selected, undo reset
         }
     });

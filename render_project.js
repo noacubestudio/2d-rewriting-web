@@ -1,4 +1,4 @@
-import { PROJECT, OPTIONS, UI_STATE } from "./state.js";
+import { PROJECT, OPTIONS, TEMP_OPTIONS, UI_STATE } from "./state.js";
 import { palette_value_to_color, selections_equal } from "./utils.js";
 
 import { drop_sel_into, eyedrop, start_drawing, continue_drawing, finish_drawing } from "./actions.js";
@@ -340,7 +340,7 @@ function handle_pointermove_for_patterns(e) {
     highlight_pixel_in_grid_els(x, y);
     
     if (!UI_STATE.is_drawing || !UI_STATE.draw_pattern_active) return; // not drawing
-    const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+    const current_tool = TEMP_OPTIONS.selected_tool || OPTIONS.selected_tool;
 
     if (current_tool === 'eyedropper') {
         const changed = eyedrop(UI_STATE.draw_pattern_active, x, y);
@@ -371,7 +371,7 @@ function create_pattern_editor_el(pattern, canvas) {
     grid.style.height = `${pattern.height * OPTIONS.pixel_scale}px`;
 
     grid.addEventListener("pointerdown", (e) => {
-        const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+        const current_tool = TEMP_OPTIONS.selected_tool || OPTIONS.selected_tool;
         if (current_tool === 'select') return; // not a drawing tool.
         e.preventDefault();
 
@@ -547,12 +547,12 @@ export function create_selection_listeners() {
         const new_sel = get_new_sel(target);
         const is_pattern_ish = new_sel.type === 'pattern' || new_sel.type === 'play';
 
-        const current_tool = OPTIONS.temp_selected_tool || OPTIONS.selected_tool;
+        const current_tool = TEMP_OPTIONS.selected_tool || OPTIONS.selected_tool;
         if (new_sel.type !== 'play' && current_tool === 'select') {
             if (PROJECT.selected.type !== new_sel.type) {
                 // if the type is different, restart selection
                 PROJECT.selected = new_sel;
-            } else {
+            } else if (PROJECT.selected.type !== null) {
                 // add or remove from selection
                 PROJECT.selected = toggle_in_selection(PROJECT.selected, new_sel);
             }
@@ -658,8 +658,6 @@ function get_new_sel(el) {
  * @returns {Selection} - the modified base selection
  */
 function toggle_in_selection(base_sel, new_sel) {
-    // go through base_sel and modify and return it.
-    // assume that new_sel is a single path.
     const index = base_sel.paths.findIndex(p => {
         return p.rule_id === new_sel.paths[0].rule_id && 
                p.part_id === new_sel.paths[0].part_id && 
@@ -668,6 +666,7 @@ function toggle_in_selection(base_sel, new_sel) {
     if (index >= 0) {
         base_sel.paths.splice(index, 1); // deselect
     } else {
+        if (!new_sel.paths.length) throw new Error("No new item to add to selection");
         base_sel.paths.push(new_sel.paths[0]); // add
     }
     return base_sel;
